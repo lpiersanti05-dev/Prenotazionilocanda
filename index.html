@@ -37,8 +37,6 @@
         .table-text-free { fill: #047857; font-weight: 800; font-size: 11px; }
         .table-text-occupied { fill: #b91c1c; font-weight: 800; font-size: 11px; }
     </style>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-stone-100 text-stone-800 min-h-screen pb-12 select-none">
 
@@ -325,19 +323,6 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        const firebaseConfig = {
-  apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
-  authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
-  projectId: "prenotazionilocanda-7808c",
-  storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
-  messagingSenderId: "407224446329",
-  appId: "1:407224446329:web:e213fbaf5aaef702af53a8",
-  measurementId: "G-436NY8G6XG"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('current-date').value = todayStr;
 
@@ -345,10 +330,8 @@ const db = firebase.database();
         let myChart = null;
 
         window.onload = function() {
-    loadDateData();
-    loadAllHistory();
-};
-
+            loadDateData();
+        };
 
         function getTableZone(tableNumStr) {
             const num = parseInt(tableNumStr);
@@ -386,34 +369,19 @@ const db = firebase.database();
         }
 
         function loadDateData() {
-    const date = document.getElementById('current-date').value;
-    if (!date) return;
+            const date = document.getElementById('current-date').value;
+            const savedData = localStorage.getItem('locanda_bookings_' + date);
+            bookings = savedData ? JSON.parse(savedData) : [];
+            
+            if (date) {
+                const parts = date.split('-');
+                document.getElementById('stat-date-display').innerText = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
 
-    const parts = date.split('-');
-    document.getElementById('stat-date-display').innerText = `${parts[2]}/${parts[1]}/${parts[0]}`;
-
-    // COLLEGA A FIREBASE IN TEMPO REALE
-    db.ref('prenotazioni/' + date).on('value', (snapshot) => {
-        const data = snapshot.val();
-        bookings = data ? Object.values(data) : [];
-
-        renderBookings();
-        updateStats();
-        updateMapVisuals();
-    });
-}
-function loadAllHistory() {
-    db.ref('prenotazioni').on('value', (snapshot) => {
-        allHistoryData = snapshot.val() || {};
-        if (!document.getElementById('tab-giorni').classList.contains('hidden')) {
-            renderDaysSummary();
+            renderBookings();
+            updateStats();
+            updateMapVisuals();
         }
-        if (!document.getElementById('tab-grafici').classList.contains('hidden')) {
-            renderCharts();
-        }
-    });
-}
-
 
         function saveData() {
             const date = document.getElementById('current-date').value;
@@ -431,24 +399,16 @@ function loadAllHistory() {
             document.getElementById('error-modal').classList.add('hidden');
         }
 
-        const bookingId = Date.now().toString();
-const newBooking = {
-    id: bookingId,
-    name,
-    table,
-    joined: joinedTables,
-    people,
-    chairs,
-    time,
-    notes
-};
+        function addBooking(e) {
+            e.preventDefault();
 
-// SALVA SU FIREBASE ANZICHÉ SUL TELEFONO
-db.ref('prenotazioni/' + date + '/' + bookingId).set(newBooking);
-
-document.getElementById('booking-form').reset();
-document.getElementById('input-time').value = "20:30";
-
+            const name = document.getElementById('input-name').value.trim();
+            const table = document.getElementById('input-table').value.trim();
+            const joinedRaw = document.getElementById('input-joined').value.trim();
+            const people = parseInt(document.getElementById('input-people').value);
+            const chairs = parseInt(document.getElementById('input-chairs').value) || 0;
+            const time = document.getElementById('input-time').value;
+            const notes = document.getElementById('input-notes').value.trim();
 
             // CONTROLLO OMONIMIA PER LA SERATA
             const duplicateName = bookings.find(b => b.name.toLowerCase() === name.toLowerCase());
@@ -567,12 +527,12 @@ document.getElementById('input-time').value = "20:30";
         }
 
         function deleteBooking(id) {
-if (confirm("Cancellare questa prenotazione?")) {
-const date = document.getElementById('current-date').value;
-db.ref('prenotazioni/' + date + '/' + id).remove();
-}
-}
-
+            if (confirm("Cancellare questa prenotazione?")) {
+                bookings = bookings.filter(b => b.id !== id);
+                saveData();
+                renderBookings();
+            }
+        }
 
         function updateStats() {
             const total = bookings.reduce((sum, b) => sum + b.people, 0);
