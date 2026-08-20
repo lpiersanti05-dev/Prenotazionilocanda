@@ -1,1 +1,758 @@
-# Prenotazionilocanda
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Locanda del Convento - Gestione Prenotazioni</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pop {
+            0% { transform: scale(0.96); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .animate-fade-in { animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-pop { animation: pop 0.25s ease-out forwards; }
+
+        .btn-tap { transition: transform 0.15s ease, background-color 0.15s ease; }
+        .btn-tap:active { transform: scale(0.94); }
+
+        .card-interactive { transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .card-interactive:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+
+        /* SVG Map Styles */
+        .table-box { cursor: pointer; transition: all 0.2s ease; }
+        .table-box:hover { opacity: 0.85; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+        .table-free { fill: #ecfdf5; stroke: #10b981; stroke-width: 2; }
+        .table-occupied { fill: #fef2f2; stroke: #ef4444; stroke-width: 2.5; }
+        .table-text-free { fill: #047857; font-weight: 800; font-size: 11px; }
+        .table-text-occupied { fill: #b91c1c; font-weight: 800; font-size: 11px; }
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-800 min-h-screen pb-12 select-none">
+
+    <!-- Modal Avviso Errore -->
+    <div id="error-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white border-2 border-emerald-500 text-stone-800 p-6 rounded-3xl max-w-xs w-full text-center space-y-3 shadow-2xl animate-pop">
+            <div class="text-3xl animate-bounce">⚠️</div>
+            <h3 class="font-extrabold text-base text-emerald-700">Attenzione!</h3>
+            <p id="error-message" class="text-xs text-stone-600 leading-relaxed font-medium">Errore generico</p>
+            <button onclick="hideError()" class="btn-tap w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs uppercase shadow-md">Ho Capito</button>
+        </div>
+    </div>
+
+    <!-- Modal Dettaglio Tavolo Mappa -->
+    <div id="map-info-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white border border-stone-200 rounded-3xl max-w-xs w-full p-5 space-y-3 shadow-2xl animate-pop">
+            <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+                <div class="flex items-center gap-2">
+                    <span id="map-modal-table" class="bg-emerald-100 text-emerald-800 font-black px-3 py-1 rounded-xl text-xs border border-emerald-300">Tavolo --</span>
+                    <span id="map-modal-zone" class="bg-stone-100 text-stone-700 font-bold px-2 py-0.5 rounded-lg text-[10px]">--</span>
+                </div>
+                <button onclick="closeMapInfoModal()" class="text-stone-400 font-bold text-xs">✕ Chiudi</button>
+            </div>
+            <div id="map-modal-content" class="space-y-2 text-xs"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white border-b border-stone-200 p-4 sticky top-0 z-20 shadow-sm">
+        <div class="max-w-md mx-auto flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <img src="https://via.placeholder.com/100?text=LOC" alt="Logo Locanda" class="w-10 h-10 rounded-2xl object-cover border border-emerald-300 shadow-sm">
+                    <div>
+                        <h1 class="font-extrabold text-base text-stone-900 leading-tight">Locanda Del Convento</h1>
+                        <p class="text-[11px] text-emerald-600 font-semibold">Arrosticini • Pizze • Taglieri</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold gap-1 overflow-x-auto">
+                <button id="btn-tab-tavoli" onclick="switchTab('tavoli')" class="btn-tap px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white shadow-md font-bold whitespace-nowrap">🪑 Tavoli</button>
+                <button id="btn-tab-cerca" onclick="switchTab('cerca')" class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">🔍 Cerca</button>
+                <button id="btn-tab-mappa" onclick="switchTab('mappa')" class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">🗺️ Mappa</button>
+                <button id="btn-tab-giorni" onclick="switchTab('giorni')" class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">📅 Storico</button>
+                <button id="btn-tab-grafici" onclick="switchTab('grafici')" class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">📊 Grafici</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-4 space-y-6">
+
+        <!-- TAB 1: TAVOLI -->
+        <section id="tab-tavoli" class="space-y-6 animate-fade-in">
+            <div class="bg-white border border-stone-200 p-3.5 rounded-2xl flex items-center justify-between shadow-sm card-interactive">
+                <label class="text-xs font-bold text-emerald-800 uppercase tracking-wider">GIORNO ATTIVO:</label>
+                <input type="date" id="current-date" class="bg-stone-50 border border-stone-200 rounded-xl px-3 py-1.5 text-xs text-emerald-700 font-bold outline-none" onchange="loadDateData()">
+            </div>
+
+            <!-- CONTATORE COPERTI TOTALE -->
+            <div class="bg-white border border-stone-200 p-4 rounded-2xl flex items-center justify-between shadow-sm card-interactive">
+                <div>
+                    <span class="text-xs text-stone-500 font-medium">Totale Coperti Serata</span>
+                    <p id="stat-date-display" class="text-xs text-emerald-700 font-bold">--/--/----</p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-center">
+                    <span id="stat-total-people" class="text-xl font-black text-emerald-700">0</span>
+                    <span class="text-[10px] text-emerald-800 block font-bold uppercase">prenotati</span>
+                </div>
+            </div>
+
+            <!-- FORM NUOVA PRENOTAZIONE -->
+            <div class="bg-white border border-stone-200 p-5 rounded-2xl space-y-4 shadow-sm card-interactive">
+                <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+                    <h2 class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">NUOVA PRENOTAZIONE</h2>
+                    <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold border border-emerald-200">Aggiungi al registro</span>
+                </div>
+
+                <form id="booking-form" onsubmit="addBooking(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-600 mb-1">Nome Cliente / Riferimento</label>
+                        <input type="text" id="input-name" placeholder="es. Serena, Rossi" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-stone-600 mb-1">N° Tavolo</label>
+                            <input type="text" id="input-table" placeholder="es. 15" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-stone-600 mb-1">🪑 Tavoli Uniti (Opzionale)</label>
+                            <input type="text" id="input-joined" placeholder="es. 12, 13" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800 placeholder-stone-400">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-stone-600 mb-1">Persone Prenotate</label>
+                            <select id="input-people" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                                <option value="1">1 Persona</option>
+                                <option value="2" selected>2 Persone</option>
+                                <option value="3">3 Persone</option>
+                                <option value="4">4 Persone</option>
+                                <option value="5">5 Persone</option>
+                                <option value="6">6 Persone</option>
+                                <option value="7">7 Persone</option>
+                                <option value="8">8 Persone</option>
+                                <option value="10">10 Persone</option>
+                                <option value="11">11 Persone</option>
+                                <option value="12">12 Persone</option>
+                                <option value="15">15+ Tavolata</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-stone-600 mb-1">🪑 Seggioloni</label>
+                            <input type="number" id="input-chairs" min="0" value="0" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-600 mb-1">Orario Arrivo</label>
+                        <select id="input-time" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-emerald-700 font-bold">
+                            <option value="19:30">19:30</option>
+                            <option value="19:45">19:45</option>
+                            <option value="20:00">20:00</option>
+                            <option value="20:15">20:15</option>
+                            <option value="20:30" selected>20:30</option>
+                            <option value="20:45">20:45</option>
+                            <option value="21:00">21:00</option>
+                            <option value="21:15">21:15</option>
+                            <option value="21:30">21:30</option>
+                            <option value="21:45">21:45</option>
+                            <option value="22:00">22:00</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-600 mb-1">Note / Intolleranze</label>
+                        <input type="text" id="input-notes" placeholder="es. Celiaco, seggiolone al tavolo, compleanno" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                    </div>
+
+                    <button type="submit" class="btn-tap w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl shadow-md text-xs uppercase tracking-wider mt-2">
+                        + SALVA PRENOTAZIONE
+                    </button>
+                </form>
+            </div>
+
+            <!-- DETTAGLIO SCHEDE PRENOTAZIONI -->
+            <div class="space-y-3">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-emerald-800 px-1">Dettaglio Tavoli Serata</h3>
+                <div id="booking-list" class="space-y-2"></div>
+            </div>
+        </section>
+
+        <!-- TAB CERCA -->
+        <section id="tab-cerca" class="hidden space-y-4 animate-fade-in">
+            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+                <h2 class="font-bold text-sm text-stone-800">Ricerca Rapida Tavolo / Nome</h2>
+                <div class="relative">
+                    <input type="text" id="search-input" onkeyup="searchBookings()" placeholder="Inserisci N° Tavolo o Nome cliente..." class="w-full bg-stone-50 border border-stone-300 rounded-xl p-3 pl-9 text-xs text-stone-800 outline-none focus:border-emerald-500 font-semibold">
+                    <span class="absolute left-3 top-3 text-stone-400 text-xs">🔍</span>
+                </div>
+            </div>
+
+            <div id="search-results" class="space-y-2">
+                <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">Digita un numero di tavolo o un nome per cercare.</div>
+            </div>
+        </section>
+
+        <!-- TAB 2: MAPPA ESATTA -->
+        <section id="tab-mappa" class="hidden space-y-4 animate-fade-in">
+            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="font-bold text-sm text-stone-800">Piantina Locale</h2>
+                        <p class="text-[11px] text-stone-500">🟢 Libero | 🔴 Prenotato (Tocca un tavolo per i dettagli)</p>
+                    </div>
+                </div>
+
+                <div class="w-full overflow-x-auto border border-stone-200 rounded-2xl bg-stone-50 p-2">
+                    <svg viewBox="0 0 520 820" class="w-full h-auto max-w-full">
+                        <!-- MURA LOCALE -->
+                        <path d="M 10,10 L 510,10 L 510,500 L 250,500 L 250,810 L 10,810 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="3" rx="10" />
+
+                        <!-- SEZIONE ALTA DESTRA: FILA 20-28 -->
+                        <g id="map-t20" onclick="clickMapTable('20')"><rect x="440" y="25" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="44" text-anchor="middle" class="table-text-free">20</text></g>
+                        <g id="map-t21" onclick="clickMapTable('21')"><rect x="440" y="65" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="84" text-anchor="middle" class="table-text-free">21</text></g>
+                        <g id="map-t22" onclick="clickMapTable('22')"><rect x="440" y="105" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="124" text-anchor="middle" class="table-text-free">22</text></g>
+                        <g id="map-t23" onclick="clickMapTable('23')"><rect x="440" y="145" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="164" text-anchor="middle" class="table-text-free">23</text></g>
+                        <g id="map-t24" onclick="clickMapTable('24')"><rect x="440" y="185" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="204" text-anchor="middle" class="table-text-free">24</text></g>
+                        <g id="map-t25" onclick="clickMapTable('25')"><rect x="440" y="225" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="244" text-anchor="middle" class="table-text-free">25</text></g>
+                        <g id="map-t26" onclick="clickMapTable('26')"><rect x="440" y="265" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="284" text-anchor="middle" class="table-text-free">26</text></g>
+                        <g id="map-t28" onclick="clickMapTable('28')"><rect x="440" y="305" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="324" text-anchor="middle" class="table-text-free">28</text></g>
+
+                        <!-- SEZIONE ALTA CENTRO: 15, 16, 17, 18, 19, 5 -->
+                        <g id="map-t15" onclick="clickMapTable('15')"><rect x="330" y="25" width="60" height="50" rx="5" class="table-box table-free"/><text x="360" y="54" text-anchor="middle" class="table-text-free">15</text></g>
+                        <g id="map-t16" onclick="clickMapTable('16')"><rect x="335" y="90" width="50" height="30" rx="5" class="table-box table-free"/><text x="360" y="109" text-anchor="middle" class="table-text-free">16</text></g>
+                        <g id="map-t17" onclick="clickMapTable('17')"><rect x="335" y="130" width="50" height="30" rx="5" class="table-box table-free"/><text x="360" y="149" text-anchor="middle" class="table-text-free">17</text></g>
+                        <g id="map-t18" onclick="clickMapTable('18')"><rect x="330" y="170" width="60" height="35" rx="5" class="table-box table-free"/><text x="360" y="191" text-anchor="middle" class="table-text-free">18</text></g>
+                        <g id="map-t19" onclick="clickMapTable('19')"><rect x="335" y="215" width="50" height="30" rx="5" class="table-box table-free"/><text x="360" y="234" text-anchor="middle" class="table-text-free">19</text></g>
+                        <g id="map-t5" onclick="clickMapTable('5')"><rect x="335" y="305" width="50" height="35" rx="5" class="table-box table-free"/><text x="360" y="326" text-anchor="middle" class="table-text-free">5</text></g>
+
+                        <!-- ANGOLO ALTO DESTRO: 4, 3, 2, 1 -->
+                        <g id="map-t4" onclick="clickMapTable('4')"><rect x="440" y="355" width="55" height="30" rx="5" class="table-box table-free"/><text x="467" y="374" text-anchor="middle" class="table-text-free">4</text></g>
+                        <g id="map-t3" onclick="clickMapTable('3')"><rect x="440" y="395" width="55" height="25" rx="5" class="table-box table-free"/><text x="467" y="412" text-anchor="middle" class="table-text-free">3</text></g>
+                        <g id="map-t2" onclick="clickMapTable('2')"><rect x="390" y="395" width="40" height="25" rx="5" class="table-box table-free"/><text x="410" y="412" text-anchor="middle" class="table-text-free">2</text></g>
+                        <g id="map-t1" onclick="clickMapTable('1')"><rect x="340" y="395" width="40" height="25" rx="5" class="table-box table-free"/><text x="360" y="412" text-anchor="middle" class="table-text-free">1</text></g>
+
+                        <!-- SEZIONE CORRIDOIO INTERNO: 14, 13, 12, 11, 10, 9, 8, 7, 6 -->
+                        <g id="map-t14" onclick="clickMapTable('14')"><rect x="220" y="25" width="70" height="45" rx="5" class="table-box table-free"/><text x="255" y="52" text-anchor="middle" class="table-text-free">14</text></g>
+                        <g id="map-t13" onclick="clickMapTable('13')"><rect x="230" y="85" width="50" height="30" rx="5" class="table-box table-free"/><text x="255" y="104" text-anchor="middle" class="table-text-free">13</text></g>
+                        <g id="map-t12" onclick="clickMapTable('12')"><rect x="230" y="125" width="50" height="30" rx="5" class="table-box table-free"/><text x="255" y="144" text-anchor="middle" class="table-text-free">12</text></g>
+                        <g id="map-t11" onclick="clickMapTable('11')"><rect x="230" y="175" width="50" height="30" rx="5" class="table-box table-free"/><text x="255" y="194" text-anchor="middle" class="table-text-free">11</text></g>
+
+                        <g id="map-t10" onclick="clickMapTable('10')"><rect x="235" y="230" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="247" text-anchor="middle" class="table-text-free">10</text></g>
+                        <g id="map-t9" onclick="clickMapTable('9')"><rect x="235" y="265" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="282" text-anchor="middle" class="table-text-free">9</text></g>
+                        <g id="map-t8" onclick="clickMapTable('8')"><rect x="235" y="300" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="317" text-anchor="middle" class="table-text-free">8</text></g>
+                        <g id="map-t7" onclick="clickMapTable('7')"><rect x="225" y="340" width="60" height="30" rx="5" class="table-box table-free"/><text x="255" y="359" text-anchor="middle" class="table-text-free">7</text></g>
+                        <g id="map-t6" onclick="clickMapTable('6')"><rect x="235" y="390" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="407" text-anchor="middle" class="table-text-free">6</text></g>
+
+                        <!-- STANZA SINISTRA (VERANDA): 30-34, 40-36, 35 -->
+                        <g id="map-t30" onclick="clickMapTable('30')"><rect x="25" y="25" width="45" height="25" rx="5" class="table-box table-free"/><text x="47" y="42" text-anchor="middle" class="table-text-free">30</text></g>
+                        <g id="map-t31" onclick="clickMapTable('31')"><rect x="25" y="55" width="45" height="25" rx="5" class="table-box table-free"/><text x="47" y="72" text-anchor="middle" class="table-text-free">31</text></g>
+                        <g id="map-t32" onclick="clickMapTable('32')"><rect x="25" y="85" width="45" height="25" rx="5" class="table-box table-free"/><text x="47" y="102" text-anchor="middle" class="table-text-free">32</text></g>
+                        <g id="map-t33" onclick="clickMapTable('33')"><rect x="25" y="115" width="45" height="25" rx="5" class="table-box table-free"/><text x="47" y="132" text-anchor="middle" class="table-text-free">33</text></g>
+                        <g id="map-t34" onclick="clickMapTable('34')"><rect x="25" y="145" width="45" height="25" rx="5" class="table-box table-free"/><text x="47" y="162" text-anchor="middle" class="table-text-free">34</text></g>
+
+                        <g id="map-t40" onclick="clickMapTable('40')"><rect x="100" y="25" width="45" height="25" rx="5" class="table-box table-free"/><text x="122" y="42" text-anchor="middle" class="table-text-free">40</text></g>
+                        <g id="map-t39" onclick="clickMapTable('39')"><rect x="100" y="55" width="45" height="25" rx="5" class="table-box table-free"/><text x="122" y="72" text-anchor="middle" class="table-text-free">39</text></g>
+                        <g id="map-t38" onclick="clickMapTable('38')"><rect x="100" y="85" width="45" height="25" rx="5" class="table-box table-free"/><text x="122" y="102" text-anchor="middle" class="table-text-free">38</text></g>
+                        <g id="map-t37" onclick="clickMapTable('37')"><rect x="100" y="115" width="45" height="25" rx="5" class="table-box table-free"/><text x="122" y="132" text-anchor="middle" class="table-text-free">37</text></g>
+                        <g id="map-t36" onclick="clickMapTable('36')"><rect x="135" y="145" width="35" height="25" rx="5" class="table-box table-free"/><text x="152" y="162" text-anchor="middle" class="table-text-free">36</text></g>
+
+                        <g id="map-t35" onclick="clickMapTable('35')"><rect x="25" y="185" width="125" height="35" rx="5" class="table-box table-free"/><text x="87" y="207" text-anchor="middle" class="table-text-free">35</text></g>
+
+                        <!-- ZONA BASSA (INGRESSO): 41, 42, 43, 44, 45, 46 -->
+                        <g id="map-t41" onclick="clickMapTable('41')"><rect x="150" y="525" width="70" height="40" rx="5" class="table-box table-free"/><text x="185" y="549" text-anchor="middle" class="table-text-free">41</text></g>
+                        <g id="map-t42" onclick="clickMapTable('42')"><rect x="60" y="530" width="45" height="30" rx="5" class="table-box table-free"/><text x="82" y="549" text-anchor="middle" class="table-text-free">42</text></g>
+
+                        <g id="map-t43" onclick="clickMapTable('43')"><rect x="150" y="605" width="70" height="40" rx="5" class="table-box table-free"/><text x="185" y="629" text-anchor="middle" class="table-text-free">43</text></g>
+                        <g id="map-t44" onclick="clickMapTable('44')"><rect x="50" y="605" width="70" height="35" rx="5" class="table-box table-free"/><text x="85" y="627" text-anchor="middle" class="table-text-free">44</text></g>
+
+                        <g id="map-t45" onclick="clickMapTable('45')"><rect x="100" y="670" width="40" height="25" rx="5" class="table-box table-free"/><text x="120" y="687" text-anchor="middle" class="table-text-free">45</text></g>
+                        <g id="map-t46" onclick="clickMapTable('46')"><rect x="40" y="695" width="45" height="30" rx="5" class="table-box table-free"/><text x="62" y="714" text-anchor="middle" class="table-text-free">46</text></g>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: STORICO SERATE CON ESPANSIONE RAPIDA -->
+        <section id="tab-giorni" class="hidden space-y-4 animate-fade-in">
+            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+                    <h2 class="font-bold text-sm text-stone-800">Albo Storico Serate</h2>
+                    <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Tocca un giorno per il riassunto</span>
+                </div>
+                <div id="days-summary-list" class="space-y-2.5"></div>
+            </div>
+        </section>
+
+        <!-- TAB 4: GRAFICI -->
+        <section id="tab-grafici" class="hidden space-y-4 animate-fade-in">
+            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+                    <h2 class="font-bold text-sm text-stone-800">Analisi e Statistiche</h2>
+                </div>
+
+                <!-- SELETTORE GRAFICO -->
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600 mb-1">Seleziona Vista Grafico</label>
+                    <select id="chart-type-select" onchange="renderCharts()" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-emerald-700 font-bold outline-none">
+                        <option value="history">📅 Andamento Coperti (Storico Serate)</option>
+                        <option value="peaks">🔥 Picco Arrivi Serata (Fasce Orarie Giorno Attivo)</option>
+                    </select>
+                </div>
+
+                <div class="w-full h-64">
+                    <canvas id="chart-coperti"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('current-date').value = todayStr;
+
+        let bookings = [];
+        let myChart = null;
+
+        window.onload = function() {
+            loadDateData();
+        };
+
+        function getTableZone(tableNumStr) {
+            const num = parseInt(tableNumStr);
+            if (isNaN(num)) return "Zona Sconosciuta";
+            if (num >= 1 && num <= 28) return "🌿 Pergolato";
+            if (num >= 30 && num <= 40) return "🪟 Zona Veranda";
+            if (num >= 41 && num <= 46) return "🚪 Ingresso";
+            if (num >= 47 && num <= 56) return "🎲 Zona Giochi";
+            if (num >= 101 && num <= 116) return "✨ Zona Nuova";
+            return "Altra Zona";
+        }
+
+        function switchTab(tab) {
+            ['tavoli', 'cerca', 'mappa', 'giorni', 'grafici'].forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+                const btn = document.getElementById('btn-tab-' + t);
+                btn.classList.remove('bg-emerald-600', 'text-white', 'shadow-md');
+                btn.classList.add('text-stone-500');
+            });
+
+            const activeTab = document.getElementById('tab-' + tab);
+            activeTab.classList.remove('hidden');
+
+            const activeBtn = document.getElementById('btn-tab-' + tab);
+            activeBtn.classList.add('bg-emerald-600', 'text-white', 'shadow-md');
+            activeBtn.classList.remove('text-stone-500');
+
+            if (tab === 'mappa') updateMapVisuals();
+            if (tab === 'giorni') renderDaysSummary();
+            if (tab === 'grafici') renderCharts();
+            if (tab === 'cerca') {
+                document.getElementById('search-input').focus();
+                searchBookings();
+            }
+        }
+
+        function loadDateData() {
+            const date = document.getElementById('current-date').value;
+            const savedData = localStorage.getItem('locanda_bookings_' + date);
+            bookings = savedData ? JSON.parse(savedData) : [];
+            
+            if (date) {
+                const parts = date.split('-');
+                document.getElementById('stat-date-display').innerText = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+
+            renderBookings();
+            updateStats();
+            updateMapVisuals();
+        }
+
+        function saveData() {
+            const date = document.getElementById('current-date').value;
+            localStorage.setItem('locanda_bookings_' + date, JSON.stringify(bookings));
+            updateStats();
+            updateMapVisuals();
+        }
+
+        function showError(msg) {
+            document.getElementById('error-message').innerText = msg;
+            document.getElementById('error-modal').classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('error-modal').classList.add('hidden');
+        }
+
+        function addBooking(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('input-name').value.trim();
+            const table = document.getElementById('input-table').value.trim();
+            const joinedRaw = document.getElementById('input-joined').value.trim();
+            const people = parseInt(document.getElementById('input-people').value);
+            const chairs = parseInt(document.getElementById('input-chairs').value) || 0;
+            const time = document.getElementById('input-time').value;
+            const notes = document.getElementById('input-notes').value.trim();
+
+            // CONTROLLO OMONIMIA PER LA SERATA
+            const duplicateName = bookings.find(b => b.name.toLowerCase() === name.toLowerCase());
+            if (duplicateName) {
+                showError(`Attenzione! C'è già una prenotazione a nome "${duplicateName.name}" (Tavolo ${duplicateName.table} alle ${duplicateName.time}). Ti conviene cambiare nome o aggiungere un dettaglio per non confonderti!`);
+                return;
+            }
+
+            const joinedTables = joinedRaw ? joinedRaw.split(',').map(s => s.trim()).filter(s => s !== '') : [];
+
+            const allRequested = [table, ...joinedTables];
+
+            for (let t of allRequested) {
+                const conflict = bookings.find(b => 
+                    b.time === time && (b.table === t || (b.joined && b.joined.includes(t)))
+                );
+                if (conflict) {
+                    showError(`Il Tavolo ${t} è già prenotato alle ore ${time} per "${conflict.name}"! Scegli un orario diverso per l'altro turno.`);
+                    return;
+                }
+            }
+
+            const newBooking = {
+                id: Date.now(),
+                name,
+                table,
+                joined: joinedTables,
+                people,
+                chairs,
+                time,
+                notes
+            };
+
+            bookings.push(newBooking);
+            saveData();
+            renderBookings();
+
+            document.getElementById('booking-form').reset();
+            document.getElementById('input-time').value = "20:30";
+        }
+
+        function buildBookingCardHTML(b, showDelete = true) {
+            const zoneName = getTableZone(b.table);
+            return `
+                <div class="bg-white border border-stone-200 p-4 rounded-2xl space-y-2 relative shadow-sm card-interactive animate-fade-in">
+                    <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg font-black text-sm">
+                                Tav. ${b.table} ${b.joined && b.joined.length > 0 ? `+ (${b.joined.join(', ')})` : ''}
+                            </span>
+                            <span class="bg-stone-100 text-stone-700 font-bold px-2 py-0.5 rounded-lg text-[10px] border border-stone-200">${zoneName}</span>
+                        </div>
+                        <span class="text-xs font-bold text-emerald-700 bg-stone-100 px-2 py-1 rounded-md border border-stone-200">⏰ ${b.time}</span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-stone-700 pt-1">
+                        <div>
+                            <p class="font-bold text-sm text-stone-800">${b.name}</p>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span>👥 <strong>${b.people}</strong> persone</span>
+                                ${b.chairs > 0 ? `<span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-200">🪑 ${b.chairs} Seggiolini</span>` : ''}
+                            </div>
+                        </div>
+                        ${showDelete ? `
+                            <button onclick="deleteBooking(${b.id})" class="btn-tap text-rose-600 bg-stone-50 border border-stone-200 px-2.5 py-1 rounded-lg text-[10px] font-semibold">
+                                🗑️ Elimina
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    ${b.notes ? `<div class="bg-stone-50 p-2 rounded-xl border border-stone-200 text-[11px] text-stone-600 italic">📝 ${b.notes}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function renderBookings() {
+            const list = document.getElementById('booking-list');
+            list.innerHTML = "";
+
+            if (bookings.length === 0) {
+                list.innerHTML = `<div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">Nessuna prenotazione inserita.</div>`;
+                return;
+            }
+
+            bookings.sort((a,b) => a.time.localeCompare(b.time));
+
+            bookings.forEach(b => {
+                list.innerHTML += buildBookingCardHTML(b, true);
+            });
+        }
+
+        function searchBookings() {
+            const query = document.getElementById('search-input').value.trim().toLowerCase();
+            const resultsContainer = document.getElementById('search-results');
+            resultsContainer.innerHTML = "";
+
+            if (!query) {
+                resultsContainer.innerHTML = `<div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">Digita un numero di tavolo o un nome per cercare.</div>`;
+                return;
+            }
+
+            const matches = bookings.filter(b => 
+                b.name.toLowerCase().includes(query) || 
+                b.table.toLowerCase().includes(query) ||
+                (b.joined && b.joined.some(j => j.toLowerCase().includes(query)))
+            );
+
+            if (matches.length === 0) {
+                resultsContainer.innerHTML = `<div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">Nessun tavolo o cliente trovato per "${query}".</div>`;
+                return;
+            }
+
+            matches.forEach(b => {
+                resultsContainer.innerHTML += buildBookingCardHTML(b, false);
+            });
+        }
+
+        function deleteBooking(id) {
+            if (confirm("Cancellare questa prenotazione?")) {
+                bookings = bookings.filter(b => b.id !== id);
+                saveData();
+                renderBookings();
+            }
+        }
+
+        function updateStats() {
+            const total = bookings.reduce((sum, b) => sum + b.people, 0);
+            document.getElementById('stat-total-people').innerText = total;
+        }
+
+        function updateMapVisuals() {
+            const allGroups = document.querySelectorAll('g[id^="map-t"]');
+            allGroups.forEach(g => {
+                const rect = g.querySelector('rect');
+                const text = g.querySelector('text');
+                if (rect && text) {
+                    rect.className.baseVal = "table-box table-free";
+                    text.className.baseVal = "table-text-free";
+                }
+            });
+
+            bookings.forEach(b => {
+                const activeTables = [b.table, ...(b.joined || [])];
+                activeTables.forEach(tNum => {
+                    const g = document.getElementById('map-t' + tNum);
+                    if (g) {
+                        const rect = g.querySelector('rect');
+                        const text = g.querySelector('text');
+                        if (rect && text) {
+                            rect.className.baseVal = "table-box table-occupied";
+                            text.className.baseVal = "table-text-occupied";
+                        }
+                    }
+                });
+            });
+        }
+
+        function clickMapTable(tableNum) {
+            const tableBookings = bookings.filter(b => b.table === tableNum || (b.joined && b.joined.includes(tableNum)));
+            const modal = document.getElementById('map-info-modal');
+            const title = document.getElementById('map-modal-table');
+            const zoneSpan = document.getElementById('map-modal-zone');
+            const content = document.getElementById('map-modal-content');
+
+            title.innerText = `Tavolo ${tableNum}`;
+            zoneSpan.innerText = getTableZone(tableNum);
+
+            if (tableBookings.length > 0) {
+                tableBookings.sort((a,b) => a.time.localeCompare(b.time));
+                let html = `<div class="space-y-2">`;
+                tableBookings.forEach(booking => {
+                    html += `
+                        <div class="bg-rose-50 border border-rose-200 p-2.5 rounded-xl space-y-1">
+                            <div class="flex justify-between items-center">
+                                <p class="font-bold text-rose-800 text-sm">${booking.name}</p>
+                                <span class="bg-rose-200 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px]">⏰ ${booking.time}</span>
+                            </div>
+                            <p class="text-stone-600">👥 Persone: <strong>${booking.people}</strong> ${booking.chairs > 0 ? `(${booking.chairs} seggioli)` : ''}</p>
+                            ${booking.joined && booking.joined.length > 0 ? `<p class="text-xs text-rose-700 font-semibold">🔗 Tavoli uniti: ${booking.table}, ${booking.joined.join(', ')}</p>` : ''}
+                            ${booking.notes ? `<p class="text-stone-500 italic mt-1">📝 ${booking.notes}</p>` : ''}
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = `
+                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center">
+                        <p class="font-bold text-emerald-800">Tavolo Libero! 🟢</p>
+                        <p class="text-stone-500 text-[11px] mt-1">Nessuna prenotazione per questo giorno.</p>
+                    </div>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeMapInfoModal() {
+            document.getElementById('map-info-modal').classList.add('hidden');
+        }
+
+        function renderDaysSummary() {
+            const list = document.getElementById('days-summary-list');
+            list.innerHTML = "";
+            let keys = Object.keys(localStorage).filter(k => k.startsWith('locanda_bookings_'));
+
+            if (keys.length === 0) {
+                list.innerHTML = `<div class="text-xs text-stone-400 text-center py-6">Nessuna serata salvata nello storico.</div>`;
+                return;
+            }
+
+            keys.sort().reverse().forEach((k, index) => {
+                const dateStr = k.replace('locanda_bookings_', '');
+                const dayBookings = JSON.parse(localStorage.getItem(k));
+                const totalPeople = dayBookings.reduce((s, item) => s + item.people, 0);
+                const parts = dateStr.split('-');
+
+                const container = document.createElement('div');
+                container.className = "bg-stone-50 border border-stone-200 rounded-2xl overflow-hidden card-interactive";
+
+                let dayHeaderHTML = `
+                    <div onclick="toggleDayDetails('day-detail-${index}')" class="p-3.5 flex justify-between items-center cursor-pointer bg-white hover:bg-stone-50 transition">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-extrabold text-xs text-stone-900">📅 ${parts[2]}/${parts[1]}/${parts[0]}</span>
+                                <span class="bg-emerald-100 text-emerald-800 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-200">${dayBookings.length} Tavoli</span>
+                            </div>
+                            <span class="text-[10px] text-stone-400 block mt-0.5">Tocca per vedere tutti i tavoli ▼</span>
+                        </div>
+                        <span class="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">${totalPeople} Coperti</span>
+                    </div>
+                `;
+
+                let detailsHTML = `<div id="day-detail-${index}" class="hidden bg-stone-100/70 p-3 border-t border-stone-200 space-y-2 text-xs">`;
+
+                if (dayBookings.length === 0) {
+                    detailsHTML += `<p class="text-stone-400 italic text-[11px] text-center">Nessuna prenotazione inserita in questa data.</p>`;
+                } else {
+                    dayBookings.sort((a,b) => a.time.localeCompare(b.time));
+                    dayBookings.forEach(b => {
+                        const z = getTableZone(b.table);
+                        detailsHTML += `
+                            <div class="bg-white p-2.5 rounded-xl border border-stone-200 flex items-center justify-between">
+                                <div>
+                                    <span class="font-extrabold text-emerald-800">T. ${b.table}${b.joined && b.joined.length > 0 ? `+${b.joined.join(',')}` : ''}</span>
+                                    <span class="text-[10px] bg-stone-100 text-stone-600 font-bold px-1.5 py-0.5 rounded ml-1 border border-stone-200">${z}</span>
+                                    <span class="font-bold text-stone-800 ml-1"> - ${b.name}</span>
+                                    ${b.notes ? `<p class="text-[10px] text-stone-500 italic mt-0.5">📝 ${b.notes}</p>` : ''}
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-stone-700 font-semibold block">👥 ${b.people} pers.</span>
+                                    <span class="text-[10px] bg-stone-100 text-emerald-700 font-mono px-1.5 py-0.5 rounded font-bold border border-stone-200">${b.time}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                detailsHTML += `</div>`;
+                container.innerHTML = dayHeaderHTML + detailsHTML;
+                list.appendChild(container);
+            });
+        }
+
+        function toggleDayDetails(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.toggle('hidden');
+            }
+        }
+
+        function renderCharts() {
+            const chartType = document.getElementById('chart-type-select').value;
+            const ctx = document.getElementById('chart-coperti').getContext('2d');
+            if (myChart) myChart.destroy();
+
+            if (chartType === 'history') {
+                let keys = Object.keys(localStorage).filter(k => k.startsWith('locanda_bookings_')).sort();
+                let labels = [];
+                let totals = [];
+
+                keys.forEach(k => {
+                    const dateStr = k.replace('locanda_bookings_', '');
+                    const parts = dateStr.split('-');
+                    labels.push(`${parts[2]}/${parts[1]}`);
+                    const data = JSON.parse(localStorage.getItem(k));
+                    totals.push(data.reduce((s, item) => s + item.people, 0));
+                });
+
+                myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Coperti Totali Serata',
+                            data: totals,
+                            backgroundColor: '#10b981',
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            } else if (chartType === 'peaks') {
+                const timeSlots = ["19:30", "19:45", "20:00", "20:15", "20:30", "20:45", "21:00", "21:15", "21:30", "21:45", "22:00"];
+                let slotCounts = {};
+                timeSlots.forEach(t => slotCounts[t] = 0);
+
+                bookings.forEach(b => {
+                    if (slotCounts[b.time] !== undefined) {
+                        slotCounts[b.time] += b.people;
+                    }
+                });
+
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: timeSlots,
+                        datasets: [{
+                            label: 'Persone in Arrivo',
+                            data: timeSlots.map(t => slotCounts[t]),
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 3,
+                            pointBackgroundColor: '#047857',
+                            pointRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                        }
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
