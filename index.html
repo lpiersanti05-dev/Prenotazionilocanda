@@ -37,6 +37,8 @@
         .table-text-free { fill: #047857; font-weight: 800; font-size: 11px; }
         .table-text-occupied { fill: #b91c1c; font-weight: 800; font-size: 11px; }
     </style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-stone-100 text-stone-800 min-h-screen pb-12 select-none">
 
@@ -323,6 +325,19 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
+        const firebaseConfig = {
+  apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
+  authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
+  projectId: "prenotazionilocanda-7808c",
+  storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
+  messagingSenderId: "407224446329",
+  appId: "1:407224446329:web:e213fbaf5aaef702af53a8",
+  measurementId: "G-436NY8G6XG"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('current-date').value = todayStr;
 
