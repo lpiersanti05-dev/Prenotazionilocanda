@@ -34,8 +34,10 @@
         .table-box:hover { opacity: 0.85; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
         .table-free { fill: #ecfdf5; stroke: #10b981; stroke-width: 2; }
         .table-occupied { fill: #fef2f2; stroke: #ef4444; stroke-width: 2.5; }
+        .table-arrived { fill: #eff6ff; stroke: #2563eb; stroke-width: 2.5; }
         .table-text-free { fill: #047857; font-weight: 800; font-size: 11px; }
         .table-text-occupied { fill: #b91c1c; font-weight: 800; font-size: 11px; }
+        .table-text-arrived { fill: #1d4ed8; font-weight: 800; font-size: 11px; }
     </style>
 </head>
 <body class="bg-stone-100 text-stone-800 min-h-screen pb-12 select-none">
@@ -47,6 +49,89 @@
             <h3 class="font-extrabold text-base text-emerald-700">Attenzione!</h3>
             <p id="error-message" class="text-xs text-stone-600 leading-relaxed font-medium">Errore generico</p>
             <button onclick="hideError()" class="btn-tap w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs uppercase shadow-md">Ho Capito</button>
+        </div>
+    </div>
+
+    <!-- Modal Modifica Prenotazione -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white border border-stone-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+                <h3 class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">✏️ Modifica Prenotazione</h3>
+                <button onclick="closeEditModal()" class="text-stone-400 font-bold text-xs">✕ Chiudi</button>
+            </div>
+            <form id="edit-booking-form" onsubmit="saveEditBooking(event)" class="space-y-3">
+                <input type="hidden" id="edit-id">
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600 mb-1">Nome Cliente / Riferimento</label>
+                    <input type="text" id="edit-name" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-600 mb-1">N° Tavolo</label>
+                        <input type="text" id="edit-table" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-600 mb-1">🪑 Tavoli Uniti</label>
+                        <input type="text" id="edit-joined" placeholder="es. 12, 13" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800 placeholder-stone-400">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-600 mb-1">Persone</label>
+                        <select id="edit-people" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            <option value="1">1 Persona</option>
+                            <option value="2">2 Persone</option>
+                            <option value="3">3 Persone</option>
+                            <option value="4">4 Persone</option>
+                            <option value="5">5 Persone</option>
+                            <option value="6">6 Persone</option>
+                            <option value="7">7 Persone</option>
+                            <option value="8">8 Persone</option>
+                            <option value="9">9 Persone</option>
+                            <option value="10">10 Persone</option>
+                            <option value="11">11 Persone</option>
+                            <option value="12">12 Persone</option>
+                            <option value="13">13 Persone</option>
+                            <option value="14">14 Persone</option>
+                            <option value="15">15 Persone</option>
+                            <option value="16">16 Persone</option>
+                            <option value="17">17 Persone</option>
+                            <option value="18">18 Persone</option>
+                            <option value="19">19 Persone</option>
+                            <option value="20">20 Persone</option>
+                            <option value="21">20+ Tavolata</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-600 mb-1">🪑 Seggioloni</label>
+                        <input type="number" id="edit-chairs" min="0" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600 mb-1">Orario Arrivo</label>
+                    <select id="edit-time" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-emerald-700 font-bold">
+                        <option value="19:30">19:30</option>
+                        <option value="19:45">19:45</option>
+                        <option value="20:00">20:00</option>
+                        <option value="20:15">20:15</option>
+                        <option value="20:30">20:30</option>
+                        <option value="20:45">20:45</option>
+                        <option value="21:00">21:00</option>
+                        <option value="21:15">21:15</option>
+                        <option value="21:30">21:30</option>
+                        <option value="21:45">21:45</option>
+                        <option value="22:00">22:00</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600 mb-1">Note / Intolleranze</label>
+                    <input type="text" id="edit-notes" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeEditModal()" class="btn-tap w-1/2 bg-stone-200 text-stone-700 font-bold py-2.5 rounded-xl text-xs uppercase">Annulla</button>
+                    <button type="submit" class="btn-tap w-1/2 bg-emerald-600 text-white font-extrabold py-2.5 rounded-xl text-xs uppercase shadow-md">Salva</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -144,10 +229,19 @@
                                 <option value="6">6 Persone</option>
                                 <option value="7">7 Persone</option>
                                 <option value="8">8 Persone</option>
+                                <option value="9">9 Persone</option>
                                 <option value="10">10 Persone</option>
                                 <option value="11">11 Persone</option>
                                 <option value="12">12 Persone</option>
-                                <option value="15">15+ Tavolata</option>
+                                <option value="13">13 Persone</option>
+                                <option value="14">14 Persone</option>
+                                <option value="15">15 Persone</option>
+                                <option value="16">16 Persone</option>
+                                <option value="17">17 Persone</option>
+                                <option value="18">18 Persone</option>
+                                <option value="19">19 Persone</option>
+                                <option value="20">20 Persone</option>
+                                <option value="21">20+ Tavolata</option>
                             </select>
                         </div>
                         <div>
@@ -212,7 +306,7 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <h2 class="font-bold text-sm text-stone-800">Piantina Locale</h2>
-                        <p class="text-[11px] text-stone-500">🟢 Libero | 🔴 Prenotato (Tocca un tavolo per i dettagli)</p>
+                        <p class="text-[11px] text-stone-500">🟢 Libero | 🔴 Prenotato | 🔵 Arrivato</p>
                     </div>
                 </div>
 
@@ -297,8 +391,14 @@
             </div>
         </section>
 
-        <!-- TAB 4: GRAFICI -->
+        <!-- TAB 4: GRAFICI & CONTATORE ZONE -->
         <section id="tab-grafici" class="hidden space-y-4 animate-fade-in">
+            <!-- RECAP COPERTI / TAVOLI PER AREA -->
+            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+                <h2 class="font-bold text-sm text-stone-800 border-b border-stone-100 pb-2">📍 Riepilogo Prenotazioni per Area (Giorno Attivo)</h2>
+                <div id="zone-summary-list" class="grid grid-cols-1 gap-2"></div>
+            </div>
+
             <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-4">
                 <div class="flex items-center justify-between border-b border-stone-100 pb-3">
                     <h2 class="font-bold text-sm text-stone-800">Analisi e Statistiche</h2>
@@ -335,7 +435,7 @@
 
         function getTableZone(tableNumStr) {
             const num = parseInt(tableNumStr);
-            if (isNaN(num)) return "Zona Sconosciuta";
+            if (isNaN(num)) return "Altra Zona";
             if (num >= 1 && num <= 28) return "🌿 Pergolato";
             if (num >= 30 && num <= 40) return "🪟 Zona Veranda";
             if (num >= 41 && num <= 46) return "🚪 Ingresso";
@@ -361,7 +461,10 @@
 
             if (tab === 'mappa') updateMapVisuals();
             if (tab === 'giorni') renderDaysSummary();
-            if (tab === 'grafici') renderCharts();
+            if (tab === 'grafici') {
+                renderZoneSummary();
+                renderCharts();
+            }
             if (tab === 'cerca') {
                 document.getElementById('search-input').focus();
                 searchBookings();
@@ -381,6 +484,7 @@
             renderBookings();
             updateStats();
             updateMapVisuals();
+            renderZoneSummary();
         }
 
         function saveData() {
@@ -388,6 +492,7 @@
             localStorage.setItem('locanda_bookings_' + date, JSON.stringify(bookings));
             updateStats();
             updateMapVisuals();
+            renderZoneSummary();
         }
 
         function showError(msg) {
@@ -410,7 +515,6 @@
             const time = document.getElementById('input-time').value;
             const notes = document.getElementById('input-notes').value.trim();
 
-            // CONTROLLO OMONIMIA PER LA SERATA
             const duplicateName = bookings.find(b => b.name.toLowerCase() === name.toLowerCase());
             if (duplicateName) {
                 showError(`Attenzione! C'è già una prenotazione a nome "${duplicateName.name}" (Tavolo ${duplicateName.table} alle ${duplicateName.time}). Ti conviene cambiare nome o aggiungere un dettaglio per non confonderti!`);
@@ -418,7 +522,6 @@
             }
 
             const joinedTables = joinedRaw ? joinedRaw.split(',').map(s => s.trim()).filter(s => s !== '') : [];
-
             const allRequested = [table, ...joinedTables];
 
             for (let t of allRequested) {
@@ -439,7 +542,8 @@
                 people,
                 chairs,
                 time,
-                notes
+                notes,
+                arrived: false
             };
 
             bookings.push(newBooking);
@@ -450,13 +554,79 @@
             document.getElementById('input-time').value = "20:30";
         }
 
+        function toggleArrived(id) {
+            const booking = bookings.find(b => b.id === id);
+            if (booking) {
+                booking.arrived = !booking.arrived;
+                saveData();
+                renderBookings();
+                if (!document.getElementById('tab-cerca').classList.contains('hidden')) {
+                    searchBookings();
+                }
+            }
+        }
+
+        function openEditModal(id) {
+            const b = bookings.find(item => item.id === id);
+            if (!b) return;
+
+            document.getElementById('edit-id').value = b.id;
+            document.getElementById('edit-name').value = b.name;
+            document.getElementById('edit-table').value = b.table;
+            document.getElementById('edit-joined').value = b.joined ? b.joined.join(', ') : '';
+            document.getElementById('edit-people').value = b.people;
+            document.getElementById('edit-chairs').value = b.chairs || 0;
+            document.getElementById('edit-time').value = b.time;
+            document.getElementById('edit-notes').value = b.notes || '';
+
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function saveEditBooking(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('edit-id').value);
+            const booking = bookings.find(b => b.id === id);
+            if (!booking) return;
+
+            const name = document.getElementById('edit-name').value.trim();
+            const table = document.getElementById('edit-table').value.trim();
+            const joinedRaw = document.getElementById('edit-joined').value.trim();
+            const people = parseInt(document.getElementById('edit-people').value);
+            const chairs = parseInt(document.getElementById('edit-chairs').value) || 0;
+            const time = document.getElementById('edit-time').value;
+            const notes = document.getElementById('edit-notes').value.trim();
+
+            const joinedTables = joinedRaw ? joinedRaw.split(',').map(s => s.trim()).filter(s => s !== '') : [];
+
+            booking.name = name;
+            booking.table = table;
+            booking.joined = joinedTables;
+            booking.people = people;
+            booking.chairs = chairs;
+            booking.time = time;
+            booking.notes = notes;
+
+            saveData();
+            renderBookings();
+            if (!document.getElementById('tab-cerca').classList.contains('hidden')) {
+                searchBookings();
+            }
+            closeEditModal();
+        }
+
         function buildBookingCardHTML(b, showDelete = true) {
             const zoneName = getTableZone(b.table);
+            const isArrived = b.arrived || false;
+
             return `
-                <div class="bg-white border border-stone-200 p-4 rounded-2xl space-y-2 relative shadow-sm card-interactive animate-fade-in">
+                <div class="bg-white border ${isArrived ? 'border-blue-400 bg-blue-50/20' : 'border-stone-200'} p-4 rounded-2xl space-y-2 relative shadow-sm card-interactive animate-fade-in">
                     <div class="flex items-center justify-between border-b border-stone-100 pb-2">
                         <div class="flex items-center gap-2">
-                            <span class="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg font-black text-sm">
+                            <span class="${isArrived ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-emerald-100 text-emerald-800 border-emerald-200'} border px-2.5 py-1 rounded-lg font-black text-sm">
                                 Tav. ${b.table} ${b.joined && b.joined.length > 0 ? `+ (${b.joined.join(', ')})` : ''}
                             </span>
                             <span class="bg-stone-100 text-stone-700 font-bold px-2 py-0.5 rounded-lg text-[10px] border border-stone-200">${zoneName}</span>
@@ -472,11 +642,19 @@
                                 ${b.chairs > 0 ? `<span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-200">🪑 ${b.chairs} Seggiolini</span>` : ''}
                             </div>
                         </div>
-                        ${showDelete ? `
-                            <button onclick="deleteBooking(${b.id})" class="btn-tap text-rose-600 bg-stone-50 border border-stone-200 px-2.5 py-1 rounded-lg text-[10px] font-semibold">
-                                🗑️ Elimina
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="toggleArrived(${b.id})" class="btn-tap ${isArrived ? 'bg-blue-600 text-white' : 'bg-stone-100 text-stone-600 border border-stone-200'} px-2 py-1 rounded-lg text-[10px] font-extrabold">
+                                ${isArrived ? '✅ Arrivato' : '🏁 Arrivato?'}
                             </button>
-                        ` : ''}
+                            <button onclick="openEditModal(${b.id})" class="btn-tap text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg text-[10px] font-bold">
+                                ✏️ Modifica
+                            </button>
+                            ${showDelete ? `
+                                <button onclick="deleteBooking(${b.id})" class="btn-tap text-rose-600 bg-stone-50 border border-stone-200 px-2 py-1 rounded-lg text-[10px] font-semibold">
+                                    🗑️
+                                </button>
+                            ` : ''}
+                        </div>
                     </div>
 
                     ${b.notes ? `<div class="bg-stone-50 p-2 rounded-xl border border-stone-200 text-[11px] text-stone-600 italic">📝 ${b.notes}</div>` : ''}
@@ -558,8 +736,13 @@
                         const rect = g.querySelector('rect');
                         const text = g.querySelector('text');
                         if (rect && text) {
-                            rect.className.baseVal = "table-box table-occupied";
-                            text.className.baseVal = "table-text-occupied";
+                            if (b.arrived) {
+                                rect.className.baseVal = "table-box table-arrived";
+                                text.className.baseVal = "table-text-arrived";
+                            } else {
+                                rect.className.baseVal = "table-box table-occupied";
+                                text.className.baseVal = "table-text-occupied";
+                            }
                         }
                     }
                 });
@@ -580,14 +763,16 @@
                 tableBookings.sort((a,b) => a.time.localeCompare(b.time));
                 let html = `<div class="space-y-2">`;
                 tableBookings.forEach(booking => {
+                    const isArr = booking.arrived || false;
                     html += `
-                        <div class="bg-rose-50 border border-rose-200 p-2.5 rounded-xl space-y-1">
+                        <div class="${isArr ? 'bg-blue-50 border-blue-200' : 'bg-rose-50 border-rose-200'} border p-2.5 rounded-xl space-y-1">
                             <div class="flex justify-between items-center">
-                                <p class="font-bold text-rose-800 text-sm">${booking.name}</p>
-                                <span class="bg-rose-200 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px]">⏰ ${booking.time}</span>
+                                <p class="font-bold ${isArr ? 'text-blue-800' : 'text-rose-800'} text-sm">${booking.name}</p>
+                                <span class="${isArr ? 'bg-blue-200 text-blue-900' : 'bg-rose-200 text-rose-900'} font-bold px-2 py-0.5 rounded text-[10px]">⏰ ${booking.time}</span>
                             </div>
                             <p class="text-stone-600">👥 Persone: <strong>${booking.people}</strong> ${booking.chairs > 0 ? `(${booking.chairs} seggioli)` : ''}</p>
-                            ${booking.joined && booking.joined.length > 0 ? `<p class="text-xs text-rose-700 font-semibold">🔗 Tavoli uniti: ${booking.table}, ${booking.joined.join(', ')}</p>` : ''}
+                            <p class="text-[10px] font-bold ${isArr ? 'text-blue-700' : 'text-rose-700'}">${isArr ? '✅ Stato: ARRIVATO' : '⏳ Stato: IN ATTESA'}</p>
+                            ${booking.joined && booking.joined.length > 0 ? `<p class="text-xs text-stone-700 font-semibold">🔗 Tavoli uniti: ${booking.table}, ${booking.joined.join(', ')}</p>` : ''}
                             ${booking.notes ? `<p class="text-stone-500 italic mt-1">📝 ${booking.notes}</p>` : ''}
                         </div>
                     `;
@@ -677,6 +862,43 @@
             const el = document.getElementById(id);
             if (el) {
                 el.classList.toggle('hidden');
+            }
+        }
+
+        function renderZoneSummary() {
+            const container = document.getElementById('zone-summary-list');
+            if (!container) return;
+            container.innerHTML = "";
+
+            const zones = ["🌿 Pergolato", "🪟 Zona Veranda", "🚪 Ingresso", "🎲 Zona Giochi", "✨ Zona Nuova", "Altra Zona"];
+            const summary = {};
+            zones.forEach(z => summary[z] = { tables: 0, people: 0 });
+
+            bookings.forEach(b => {
+                const z = getTableZone(b.table);
+                if (!summary[z]) summary[z] = { tables: 0, people: 0 };
+                summary[z].tables += 1 + (b.joined ? b.joined.length : 0);
+                summary[z].people += b.people;
+            });
+
+            let hasData = false;
+            zones.forEach(z => {
+                if (summary[z].tables > 0) {
+                    hasData = true;
+                    container.innerHTML += `
+                        <div class="bg-stone-50 border border-stone-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
+                            <span class="font-bold text-stone-800">${z}</span>
+                            <div class="flex gap-2">
+                                <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-lg border border-emerald-200">🪑 ${summary[z].tables} Tavoli</span>
+                                <span class="bg-stone-200 text-stone-800 font-bold px-2 py-0.5 rounded-lg">👥 ${summary[z].people} Persone</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            if (!hasData) {
+                container.innerHTML = `<p class="text-stone-400 text-xs italic text-center py-2">Nessun tavolo prenotato per oggi.</p>`;
             }
         }
 
