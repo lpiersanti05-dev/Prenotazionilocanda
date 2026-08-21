@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Locanda del Convento - Gestione Prenotazioni</title>
+    <title>Locanda del Convento - Gestione Prenotazioni Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SDK Firebase Compat per gestione Cloud Real-time -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -157,7 +160,7 @@
                     <img src="https://via.placeholder.com/100?text=LOC" alt="Logo Locanda" class="w-10 h-10 rounded-2xl object-cover border border-emerald-300 shadow-sm">
                     <div>
                         <h1 class="font-extrabold text-base text-stone-900 leading-tight">Locanda Del Convento</h1>
-                        <p class="text-[11px] text-emerald-600 font-semibold">Arrosticini • Pizze • Taglieri</p>
+                        <p class="text-[11px] text-emerald-600 font-semibold">Arrosticini • Pizze • Cloud Real-time ⚡</p>
                     </div>
                 </div>
             </div>
@@ -197,7 +200,7 @@
             <div class="bg-white border border-stone-200 p-5 rounded-2xl space-y-4 shadow-sm card-interactive">
                 <div class="flex items-center justify-between border-b border-stone-100 pb-3">
                     <h2 class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">NUOVA PRENOTAZIONE</h2>
-                    <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold border border-emerald-200">Aggiungi al registro</span>
+                    <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold border border-emerald-200">Sync Cloud ⚡</span>
                 </div>
 
                 <form id="booking-form" onsubmit="addBooking(event)" class="space-y-3">
@@ -273,7 +276,7 @@
                     </div>
 
                     <button type="submit" class="btn-tap w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl shadow-md text-xs uppercase tracking-wider mt-2">
-                        + SALVA PRENOTAZIONE
+                        + SALVA IN CLOUD
                     </button>
                 </form>
             </div>
@@ -393,7 +396,6 @@
 
         <!-- TAB 4: GRAFICI & CONTATORE ZONE -->
         <section id="tab-grafici" class="hidden space-y-4 animate-fade-in">
-            <!-- RECAP COPERTI / TAVOLI PER AREA -->
             <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
                 <h2 class="font-bold text-sm text-stone-800 border-b border-stone-100 pb-2">📍 Riepilogo Prenotazioni per Area (Giorno Attivo)</h2>
                 <div id="zone-summary-list" class="grid grid-cols-1 gap-2"></div>
@@ -404,7 +406,6 @@
                     <h2 class="font-bold text-sm text-stone-800">Analisi e Statistiche</h2>
                 </div>
 
-                <!-- SELETTORE GRAFICO -->
                 <div>
                     <label class="block text-xs font-semibold text-stone-600 mb-1">Seleziona Vista Grafico</label>
                     <select id="chart-type-select" onchange="renderCharts()" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-emerald-700 font-bold outline-none">
@@ -421,13 +422,29 @@
 
     </main>
 
-    <!-- JAVASCRIPT LOGIC -->
+    <!-- JAVASCRIPT LOGIC CLOUD REAL-TIME -->
     <script>
+        // --- 1. CONFIGURAZIONE FIREBASE CLOUD ---
+        // Sostituisci questi valori con le chiavi del tuo progetto Firebase Console!
+        const firebaseConfig = {
+            apiKey: "INSERISCI_IL_TUO_API_KEY",
+            authDomain: "INSERISCI_IL_TUO_PROJECT_ID.firebaseapp.com",
+            projectId: "INSERISCI_IL_TUO_PROJECT_ID",
+            storageBucket: "INSERISCI_IL_TUO_PROJECT_ID.appspot.com",
+            messagingSenderId: "INSERISCI_SENDER_ID",
+            appId: "INSERISCI_APP_ID"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // --- 2. STATO APPLICAZIONE ---
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('current-date').value = todayStr;
 
         let bookings = [];
         let myChart = null;
+        let unsubscribeListener = null;
 
         window.onload = function() {
             loadDateData();
@@ -471,28 +488,33 @@
             }
         }
 
+        // --- 3. ASCOLTO REAL-TIME FIREBASE ---
         function loadDateData() {
             const date = document.getElementById('current-date').value;
-            const savedData = localStorage.getItem('locanda_bookings_' + date);
-            bookings = savedData ? JSON.parse(savedData) : [];
             
             if (date) {
                 const parts = date.split('-');
                 document.getElementById('stat-date-display').innerText = `${parts[2]}/${parts[1]}/${parts[0]}`;
             }
 
-            renderBookings();
-            updateStats();
-            updateMapVisuals();
-            renderZoneSummary();
-        }
+            // Stacca eventuale listener precedente per la vecchia data
+            if (unsubscribeListener) unsubscribeListener();
 
-        function saveData() {
-            const date = document.getElementById('current-date').value;
-            localStorage.setItem('locanda_bookings_' + date, JSON.stringify(bookings));
-            updateStats();
-            updateMapVisuals();
-            renderZoneSummary();
+            // Ascolta le modifiche sul database in TEMPO REALE!
+            unsubscribeListener = db.collection("bookings")
+                .where("date", "==", date)
+                .onSnapshot((snapshot) => {
+                    bookings = [];
+                    snapshot.forEach((doc) => {
+                        bookings.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderBookings();
+                    updateStats();
+                    updateMapVisuals();
+                    renderZoneSummary();
+                }, (error) => {
+                    console.error("Errore Sync Cloud:", error);
+                });
         }
 
         function showError(msg) {
@@ -504,9 +526,11 @@
             document.getElementById('error-modal').classList.add('hidden');
         }
 
-        function addBooking(e) {
+        // --- 4. OPERAZIONI CRUD SU CLOUD DATABASE ---
+        async function addBooking(e) {
             e.preventDefault();
 
+            const date = document.getElementById('current-date').value;
             const name = document.getElementById('input-name').value.trim();
             const table = document.getElementById('input-table').value.trim();
             const joinedRaw = document.getElementById('input-joined').value.trim();
@@ -517,7 +541,7 @@
 
             const duplicateName = bookings.find(b => b.name.toLowerCase() === name.toLowerCase());
             if (duplicateName) {
-                showError(`Attenzione! C'è già una prenotazione a nome "${duplicateName.name}" (Tavolo ${duplicateName.table} alle ${duplicateName.time}). Ti conviene cambiare nome o aggiungere un dettaglio per non confonderti!`);
+                showError(`Attenzione! C'è già una prenotazione a nome "${duplicateName.name}" (Tavolo ${duplicateName.table} alle ${duplicateName.time}). Ti conviene cambiare nome o aggiungere un dettaglio!`);
                 return;
             }
 
@@ -529,13 +553,13 @@
                     b.time === time && (b.table === t || (b.joined && b.joined.includes(t)))
                 );
                 if (conflict) {
-                    showError(`Il Tavolo ${t} è già prenotato alle ore ${time} per "${conflict.name}"! Scegli un orario diverso per l'altro turno.`);
+                    showError(`Il Tavolo ${t} è già prenotato alle ore ${time} per "${conflict.name}"! Scegli un orario diverso.`);
                     return;
                 }
             }
 
             const newBooking = {
-                id: Date.now(),
+                date,
                 name,
                 table,
                 joined: joinedTables,
@@ -543,25 +567,28 @@
                 chairs,
                 time,
                 notes,
-                arrived: false
+                arrived: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            bookings.push(newBooking);
-            saveData();
-            renderBookings();
-
-            document.getElementById('booking-form').reset();
-            document.getElementById('input-time').value = "20:30";
+            try {
+                await db.collection("bookings").add(newBooking);
+                document.getElementById('booking-form').reset();
+                document.getElementById('input-time').value = "20:30";
+            } catch (err) {
+                showError("Impossibile salvare sul Cloud: " + err.message);
+            }
         }
 
-        function toggleArrived(id) {
+        async function toggleArrived(id) {
             const booking = bookings.find(b => b.id === id);
             if (booking) {
-                booking.arrived = !booking.arrived;
-                saveData();
-                renderBookings();
-                if (!document.getElementById('tab-cerca').classList.contains('hidden')) {
-                    searchBookings();
+                try {
+                    await db.collection("bookings").doc(id).update({
+                        arrived: !booking.arrived
+                    });
+                } catch (err) {
+                    showError("Errore nell'aggiornamento dello stato: " + err.message);
                 }
             }
         }
@@ -586,11 +613,9 @@
             document.getElementById('edit-modal').classList.add('hidden');
         }
 
-        function saveEditBooking(e) {
+        async function saveEditBooking(e) {
             e.preventDefault();
-            const id = parseInt(document.getElementById('edit-id').value);
-            const booking = bookings.find(b => b.id === id);
-            if (!booking) return;
+            const id = document.getElementById('edit-id').value;
 
             const name = document.getElementById('edit-name').value.trim();
             const table = document.getElementById('edit-table').value.trim();
@@ -602,22 +627,33 @@
 
             const joinedTables = joinedRaw ? joinedRaw.split(',').map(s => s.trim()).filter(s => s !== '') : [];
 
-            booking.name = name;
-            booking.table = table;
-            booking.joined = joinedTables;
-            booking.people = people;
-            booking.chairs = chairs;
-            booking.time = time;
-            booking.notes = notes;
-
-            saveData();
-            renderBookings();
-            if (!document.getElementById('tab-cerca').classList.contains('hidden')) {
-                searchBookings();
+            try {
+                await db.collection("bookings").doc(id).update({
+                    name,
+                    table,
+                    joined: joinedTables,
+                    people,
+                    chairs,
+                    time,
+                    notes
+                });
+                closeEditModal();
+            } catch (err) {
+                showError("Errore durante la modifica: " + err.message);
             }
-            closeEditModal();
         }
 
+        async function deleteBooking(id) {
+            if (confirm("Cancellare questa prenotazione dal Cloud per tutti?")) {
+                try {
+                    await db.collection("bookings").doc(id).delete();
+                } catch (err) {
+                    showError("Errore eliminazione: " + err.message);
+                }
+            }
+        }
+
+        // --- 5. INTERFACCIA GRAFICA & COMPONENTI ---
         function buildBookingCardHTML(b, showDelete = true) {
             const zoneName = getTableZone(b.table);
             const isArrived = b.arrived || false;
@@ -643,14 +679,14 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <button onclick="toggleArrived(${b.id})" class="btn-tap ${isArrived ? 'bg-blue-600 text-white' : 'bg-stone-100 text-stone-600 border border-stone-200'} px-2 py-1 rounded-lg text-[10px] font-extrabold">
+                            <button onclick="toggleArrived('${b.id}')" class="btn-tap ${isArrived ? 'bg-blue-600 text-white' : 'bg-stone-100 text-stone-600 border border-stone-200'} px-2 py-1 rounded-lg text-[10px] font-extrabold">
                                 ${isArrived ? '✅ Arrivato' : '🏁 Arrivato?'}
                             </button>
-                            <button onclick="openEditModal(${b.id})" class="btn-tap text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg text-[10px] font-bold">
+                            <button onclick="openEditModal('${b.id}')" class="btn-tap text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg text-[10px] font-bold">
                                 ✏️ Modifica
                             </button>
                             ${showDelete ? `
-                                <button onclick="deleteBooking(${b.id})" class="btn-tap text-rose-600 bg-stone-50 border border-stone-200 px-2 py-1 rounded-lg text-[10px] font-semibold">
+                                <button onclick="deleteBooking('${b.id}')" class="btn-tap text-rose-600 bg-stone-50 border border-stone-200 px-2 py-1 rounded-lg text-[10px] font-semibold">
                                     🗑️
                                 </button>
                             ` : ''}
@@ -667,7 +703,7 @@
             list.innerHTML = "";
 
             if (bookings.length === 0) {
-                list.innerHTML = `<div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">Nessuna prenotazione inserita.</div>`;
+                list.innerHTML = `<div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">Nessuna prenotazione presente per questa data.</div>`;
                 return;
             }
 
@@ -702,14 +738,6 @@
             matches.forEach(b => {
                 resultsContainer.innerHTML += buildBookingCardHTML(b, false);
             });
-        }
-
-        function deleteBooking(id) {
-            if (confirm("Cancellare questa prenotazione?")) {
-                bookings = bookings.filter(b => b.id !== id);
-                saveData();
-                renderBookings();
-            }
         }
 
         function updateStats() {
@@ -783,7 +811,7 @@
                 content.innerHTML = `
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center">
                         <p class="font-bold text-emerald-800">Tavolo Libero! 🟢</p>
-                        <p class="text-stone-500 text-[11px] mt-1">Nessuna prenotazione per questo giorno.</p>
+                        <p class="text-stone-500 text-[11px] mt-1">Nessuna prenotazione per questa data.</p>
                     </div>
                 `;
             }
@@ -795,43 +823,51 @@
             document.getElementById('map-info-modal').classList.add('hidden');
         }
 
-        function renderDaysSummary() {
+        async function renderDaysSummary() {
             const list = document.getElementById('days-summary-list');
-            list.innerHTML = "";
-            let keys = Object.keys(localStorage).filter(k => k.startsWith('locanda_bookings_'));
+            list.innerHTML = `<div class="text-xs text-stone-400 text-center py-6">Caricamento storico Cloud...</div>`;
 
-            if (keys.length === 0) {
-                list.innerHTML = `<div class="text-xs text-stone-400 text-center py-6">Nessuna serata salvata nello storico.</div>`;
-                return;
-            }
+            try {
+                const snapshot = await db.collection("bookings").get();
+                const grouped = {};
 
-            keys.sort().reverse().forEach((k, index) => {
-                const dateStr = k.replace('locanda_bookings_', '');
-                const dayBookings = JSON.parse(localStorage.getItem(k));
-                const totalPeople = dayBookings.reduce((s, item) => s + item.people, 0);
-                const parts = dateStr.split('-');
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (!grouped[data.date]) grouped[data.date] = [];
+                    grouped[data.date].push({ id: doc.id, ...data });
+                });
 
-                const container = document.createElement('div');
-                container.className = "bg-stone-50 border border-stone-200 rounded-2xl overflow-hidden card-interactive";
+                const dates = Object.keys(grouped).sort().reverse();
+                list.innerHTML = "";
 
-                let dayHeaderHTML = `
-                    <div onclick="toggleDayDetails('day-detail-${index}')" class="p-3.5 flex justify-between items-center cursor-pointer bg-white hover:bg-stone-50 transition">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="font-extrabold text-xs text-stone-900">📅 ${parts[2]}/${parts[1]}/${parts[0]}</span>
-                                <span class="bg-emerald-100 text-emerald-800 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-200">${dayBookings.length} Tavoli</span>
+                if (dates.length === 0) {
+                    list.innerHTML = `<div class="text-xs text-stone-400 text-center py-6">Nessuna serata salvata nel database.</div>`;
+                    return;
+                }
+
+                dates.forEach((dStr, index) => {
+                    const dayBookings = grouped[dStr];
+                    const totalPeople = dayBookings.reduce((s, item) => s + item.people, 0);
+                    const parts = dStr.split('-');
+
+                    const container = document.createElement('div');
+                    container.className = "bg-stone-50 border border-stone-200 rounded-2xl overflow-hidden card-interactive";
+
+                    let dayHeaderHTML = `
+                        <div onclick="toggleDayDetails('day-detail-${index}')" class="p-3.5 flex justify-between items-center cursor-pointer bg-white hover:bg-stone-50 transition">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-xs text-stone-900">📅 ${parts[2]}/${parts[1]}/${parts[0]}</span>
+                                    <span class="bg-emerald-100 text-emerald-800 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-200">${dayBookings.length} Tavoli</span>
+                                </div>
+                                <span class="text-[10px] text-stone-400 block mt-0.5">Tocca per dettaglio tavoli ▼</span>
                             </div>
-                            <span class="text-[10px] text-stone-400 block mt-0.5">Tocca per vedere tutti i tavoli ▼</span>
+                            <span class="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">${totalPeople} Coperti</span>
                         </div>
-                        <span class="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">${totalPeople} Coperti</span>
-                    </div>
-                `;
+                    `;
 
-                let detailsHTML = `<div id="day-detail-${index}" class="hidden bg-stone-100/70 p-3 border-t border-stone-200 space-y-2 text-xs">`;
+                    let detailsHTML = `<div id="day-detail-${index}" class="hidden bg-stone-100/70 p-3 border-t border-stone-200 space-y-2 text-xs">`;
 
-                if (dayBookings.length === 0) {
-                    detailsHTML += `<p class="text-stone-400 italic text-[11px] text-center">Nessuna prenotazione inserita in questa data.</p>`;
-                } else {
                     dayBookings.sort((a,b) => a.time.localeCompare(b.time));
                     dayBookings.forEach(b => {
                         const z = getTableZone(b.table);
@@ -850,12 +886,15 @@
                             </div>
                         `;
                     });
-                }
 
-                detailsHTML += `</div>`;
-                container.innerHTML = dayHeaderHTML + detailsHTML;
-                list.appendChild(container);
-            });
+                    detailsHTML += `</div>`;
+                    container.innerHTML = dayHeaderHTML + detailsHTML;
+                    list.appendChild(container);
+                });
+
+            } catch (err) {
+                list.innerHTML = `<div class="text-xs text-rose-500 text-center py-6">Errore recupero storico: ${err.message}</div>`;
+            }
         }
 
         function toggleDayDetails(id) {
@@ -902,41 +941,48 @@
             }
         }
 
-        function renderCharts() {
+        async function renderCharts() {
             const chartType = document.getElementById('chart-type-select').value;
             const ctx = document.getElementById('chart-coperti').getContext('2d');
             if (myChart) myChart.destroy();
 
             if (chartType === 'history') {
-                let keys = Object.keys(localStorage).filter(k => k.startsWith('locanda_bookings_')).sort();
-                let labels = [];
-                let totals = [];
+                try {
+                    const snapshot = await db.collection("bookings").get();
+                    const grouped = {};
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (!grouped[data.date]) grouped[data.date] = 0;
+                        grouped[data.date] += data.people;
+                    });
 
-                keys.forEach(k => {
-                    const dateStr = k.replace('locanda_bookings_', '');
-                    const parts = dateStr.split('-');
-                    labels.push(`${parts[2]}/${parts[1]}`);
-                    const data = JSON.parse(localStorage.getItem(k));
-                    totals.push(data.reduce((s, item) => s + item.people, 0));
-                });
+                    const dates = Object.keys(grouped).sort();
+                    const labels = dates.map(d => {
+                        const parts = d.split('-');
+                        return `${parts[2]}/${parts[1]}`;
+                    });
+                    const totals = dates.map(d => grouped[d]);
 
-                myChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Coperti Totali Serata',
-                            data: totals,
-                            backgroundColor: '#10b981',
-                            borderRadius: 8
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
-                    }
-                });
+                    myChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Coperti Totali Serata',
+                                data: totals,
+                                backgroundColor: '#10b981',
+                                borderRadius: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                } catch (err) {
+                    console.error("Errore grafico storico:", err);
+                }
             } else if (chartType === 'peaks') {
                 const timeSlots = ["19:30", "19:45", "20:00", "20:15", "20:30", "20:45", "21:00", "21:15", "21:30", "21:45", "22:00"];
                 let slotCounts = {};
@@ -976,5 +1022,28 @@
             }
         }
     </script>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
+    authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
+    projectId: "prenotazionilocanda-7808c",
+    storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
+    messagingSenderId: "407224446329",
+    appId: "1:407224446329:web:e213fbaf5aaef702af53a8",
+    measurementId: "G-436NY8G6XG"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
 </body>
 </html>
