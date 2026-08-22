@@ -509,6 +509,7 @@
                         bookings.push({ id: doc.id, ...doc.data() });
                     });
                     renderBookings();
+                    searchBookings(); // <-- AGGIORNAMENTO LIVE PER LA SEARCH BAR
                     updateStats();
                     updateMapVisuals();
                     renderZoneSummary();
@@ -715,8 +716,13 @@
         }
 
         function searchBookings() {
-            const query = document.getElementById('search-input').value.trim().toLowerCase();
+            const searchInput = document.getElementById('search-input');
+            if (!searchInput) return;
+            
+            const query = searchInput.value.trim().toLowerCase();
             const resultsContainer = document.getElementById('search-results');
+            if (!resultsContainer) return;
+            
             resultsContainer.innerHTML = "";
 
             if (!query) {
