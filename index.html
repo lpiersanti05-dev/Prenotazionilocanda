@@ -716,7 +716,7 @@
                 <div class="flex items-center justify-between px-1">
 
                     <h3 class="font-bold text-xs uppercase tracking-wider text-blue-800">
-                        📍 Tavoli Arrivati
+                        📍 Tavoli Arrivati (In Ordine di Arrivo)
                     </h3>
 
                     <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold border border-blue-200">
@@ -1303,6 +1303,7 @@
                 notes,
 
                 arrived: false,
+                arrivedAt: null,
                 welcome: false,
                 ordered: false,
 
@@ -1411,6 +1412,7 @@
                 notes,
 
                 arrived: true,
+                arrivedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 welcome: false,
                 ordered: false,
 
@@ -1456,13 +1458,20 @@
 
             if (booking) {
 
+                const nextArrivedState = !booking.arrived;
+
                 try {
 
                     await db.collection("bookings")
                         .doc(id)
                         .update({
 
-                            arrived: !booking.arrived,
+                            arrived: nextArrivedState,
+
+                            // Registra o azzera il timestamp dell'arrivo
+                            arrivedAt: nextArrivedState 
+                                ? firebase.firestore.FieldValue.serverTimestamp() 
+                                : null,
 
                             welcome: false,
 
@@ -1865,7 +1874,7 @@
 
 
         // ---------------------------------------------------------
-        // LISTA TAVOLI ARRIVATI
+        // LISTA TAVOLI ARRIVATI (Ordinati per momento di arrivo)
         // ---------------------------------------------------------
 
         function renderArrivedList() {
@@ -1901,14 +1910,14 @@
             }
 
 
-            arrivedBookings.sort(
-                (a, b) =>
-                    a.table.localeCompare(
-                        b.table,
-                        undefined,
-                        { numeric: true }
-                    )
-            );
+            // Ordinamento in base all'orario in cui si è premuto "Arrivato" (arrivedAt)
+            arrivedBookings.sort((a, b) => {
+                const timeA = a.arrivedAt ? (a.arrivedAt.seconds || new Date(a.arrivedAt).getTime() / 1000) : 0;
+                const timeB = b.arrivedAt ? (b.arrivedAt.seconds || new Date(b.arrivedAt).getTime() / 1000) : 0;
+                
+                // Ordinamento dal primo arrivato all'ultimo (Inversione facoltativa se si desiderano i più recenti in alto)
+                return timeA - timeB; 
+            });
 
 
             arrivedBookings.forEach(b => {
@@ -1978,40 +1987,36 @@
                         }
 
 
-                        <div class="flex items-center gap-2 pt-1 border-t border-stone-200/60">
+                        <div class="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60">
 
-                            <button
-                                onclick="setServiceState('${b.id}', 'welcome')"
-                                class="btn-tap flex-1 py-1.5 rounded-xl text-xs font-bold transition ${
-                                    isWelcome
-                                        ? 'bg-amber-500 text-white shadow-sm'
-                                        : 'bg-white text-amber-700 border border-amber-300'
-                                }">
+                            <div class="flex gap-2 w-full">
 
-                                ${
-                                    isWelcome
-                                        ? '🍷 Benvenuto Fatto'
-                                        : '🥂 Fai Benvenuto'
-                                }
+                                <button
+                                    onclick="setServiceState('${b.id}', 'welcome')"
+                                    class="btn-tap flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                                        isWelcome
+                                            ? 'bg-amber-500 text-white shadow-sm'
+                                            : 'bg-white border border-stone-200 text-stone-600'
+                                    }">
 
-                            </button>
+                                    🍹 Benvenuto ${isWelcome ? '✓' : ''}
+
+                                </button>
 
 
-                            <button
-                                onclick="setServiceState('${b.id}', 'ordered')"
-                                class="btn-tap flex-1 py-1.5 rounded-xl text-xs font-bold transition ${
-                                    isOrdered
-                                        ? 'bg-emerald-600 text-white shadow-sm'
-                                        : 'bg-white text-emerald-700 border border-emerald-300'
-                                }">
+                                <button
+                                    onclick="setServiceState('${b.id}', 'ordered')"
+                                    class="btn-tap flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                                        isOrdered
+                                            ? 'bg-emerald-600 text-white shadow-sm'
+                                            : 'bg-white border border-stone-200 text-stone-600'
+                                    }">
 
-                                ${
-                                    isOrdered
-                                        ? '📋 Comanda Presa'
-                                        : '📝 Prendi Comanda'
-                                }
+                                    🍕 Comandato ${isOrdered ? '✓' : ''}
 
-                            </button>
+                                </button>
+
+                            </div>
 
                         </div>
 
@@ -2025,97 +2030,16 @@
 
 
         // ---------------------------------------------------------
-        // TAVOLI LIBERI
-        // ---------------------------------------------------------
-
-        function renderFreeTables() {
-
-            const container =
-                document.getElementById('free-tables-list');
-
-
-            if (!container) return;
-
-
-            const occupiedTables =
-                new Set();
-
-
-            bookings.forEach(b => {
-
-                occupiedTables.add(
-                    String(b.table).trim()
-                );
-
-
-                if (
-                    b.joined &&
-                    Array.isArray(b.joined)
-                ) {
-
-                    b.joined.forEach(j =>
-                        occupiedTables.add(
-                            String(j).trim()
-                        )
-                    );
-
-                }
-
-            });
-
-
-            const freeTables =
-                ALL_TABLES.filter(
-                    t => !occupiedTables.has(t)
-                );
-
-
-            container.innerHTML = "";
-
-
-            if (freeTables.length === 0) {
-
-                container.innerHTML = `
-
-                    <span class="text-rose-500 font-bold text-xs">
-                        Nessun tavolo libero rimasto!
-                    </span>
-
-                `;
-
-                return;
-
-            }
-
-
-            freeTables.forEach(t => {
-
-                container.innerHTML += `
-
-                    <button
-                        type="button"
-                        onclick="document.getElementById('walkin-table').value='${t}'"
-                        class="btn-tap bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-extrabold px-2 py-1 rounded-lg border border-emerald-300">
-
-                        ${t}
-
-                    </button>
-
-                `;
-
-            });
-
-        }
-
-
-        // ---------------------------------------------------------
-        // RENDER PRENOTAZIONI
+        // RENDER GENERALE PRENOTAZIONI
         // ---------------------------------------------------------
 
         function renderBookings() {
 
             const list =
                 document.getElementById('booking-list');
+
+
+            if (!list) return;
 
 
             list.innerHTML = "";
@@ -2125,9 +2049,9 @@
 
                 list.innerHTML = `
 
-                    <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">
+                    <div class="text-center py-10 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl bg-white">
 
-                        Nessuna prenotazione presente per questa data.
+                        Nessuna prenotazione trovata per questa data.
 
                     </div>
 
@@ -2140,7 +2064,11 @@
 
             bookings.sort(
                 (a, b) =>
-                    a.time.localeCompare(b.time)
+                    a.table.localeCompare(
+                        b.table,
+                        undefined,
+                        { numeric: true }
+                    )
             );
 
 
@@ -2155,37 +2083,136 @@
 
 
         // ---------------------------------------------------------
+        // TAVOLI LIBERI (WALK-IN)
+        // ---------------------------------------------------------
+
+        function renderFreeTables() {
+
+            const container =
+                document.getElementById('free-tables-list');
+
+
+            if (!container) return;
+
+
+            const occupied = new Set();
+
+
+            bookings.forEach(b => {
+
+                if (b.table) occupied.add(b.table);
+
+                if (b.joined && Array.isArray(b.joined)) {
+
+                    b.joined.forEach(t => occupied.add(t));
+
+                }
+
+            });
+
+
+            const freeTables = ALL_TABLES.filter(
+                t => !occupied.has(t)
+            );
+
+
+            if (freeTables.length === 0) {
+
+                container.innerHTML = `
+
+                    <span class="text-rose-600 font-bold text-xs">
+                        ⚠️ Nessun tavolo libero disponibile!
+                    </span>
+
+                `;
+
+                return;
+
+            }
+
+
+            container.innerHTML = freeTables.map(t => `
+
+                <button
+                    type="button"
+                    onclick="selectFreeTable('${t}')"
+                    class="btn-tap bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-extrabold px-2 py-1 rounded-lg text-xs border border-emerald-300">
+
+                    ${t}
+
+                </button>
+
+            `).join('');
+
+        }
+
+
+        function selectFreeTable(t) {
+
+            document.getElementById('walkin-table').value = t;
+
+        }
+
+
+        // ---------------------------------------------------------
+        // STATISTICHE
+        // ---------------------------------------------------------
+
+        function updateStats() {
+
+            let totalPeople = 0;
+
+            let arrivedTables = 0;
+
+            let totalTables = bookings.length;
+
+
+            bookings.forEach(b => {
+
+                totalPeople += (b.people || 0);
+
+                if (b.arrived) arrivedTables++;
+
+            });
+
+
+            document.getElementById('stat-total-people').innerText =
+                totalPeople;
+
+            document.getElementById('stat-arrived-tables').innerText =
+                arrivedTables;
+
+            document.getElementById('stat-total-tables').innerText =
+                totalTables;
+
+            document.getElementById('stat-pending-tables').innerText =
+                Math.max(0, totalTables - arrivedTables);
+
+        }
+
+
+        // ---------------------------------------------------------
         // RICERCA
         // ---------------------------------------------------------
 
         function searchBookings() {
 
-            const searchInput =
-                document.getElementById('search-input');
-
-
-            if (!searchInput) return;
-
-
             const query =
-                searchInput.value.trim().toLowerCase();
+                document.getElementById('search-input')
+                    .value.trim().toLowerCase();
 
-
-            const resultsContainer =
+            const container =
                 document.getElementById('search-results');
 
 
-            if (!resultsContainer) return;
-
-
-            resultsContainer.innerHTML = "";
+            if (!container) return;
 
 
             if (!query) {
 
-                resultsContainer.innerHTML = `
+                container.innerHTML = `
 
-                    <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">
+                    <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl bg-white">
 
                         Digita un numero di tavolo o un nome per cercare.
 
@@ -2198,27 +2225,27 @@
             }
 
 
-            const matches =
-                bookings.filter(b =>
-                    b.name.toLowerCase().includes(query) ||
-                    b.table.toLowerCase().includes(query) ||
-                    (
-                        b.joined &&
-                        b.joined.some(
-                            j =>
-                                j.toLowerCase().includes(query)
-                        )
-                    )
-                );
+            const filtered = bookings.filter(b =>
+
+                b.name.toLowerCase().includes(query) ||
+
+                b.table.toString().toLowerCase() === query ||
+
+                (
+                    b.joined &&
+                    b.joined.some(j => j.toString().toLowerCase() === query)
+                )
+
+            );
 
 
-            if (matches.length === 0) {
+            if (filtered.length === 0) {
 
-                resultsContainer.innerHTML = `
+                container.innerHTML = `
 
-                    <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">
+                    <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl bg-white">
 
-                        Nessun tavolo o cliente trovato per "${query}".
+                        Nessuna prenotazione trovata per "${query}".
 
                     </div>
 
@@ -2229,9 +2256,12 @@
             }
 
 
-            matches.forEach(b => {
+            container.innerHTML = "";
 
-                resultsContainer.innerHTML +=
+
+            filtered.forEach(b => {
+
+                container.innerHTML +=
                     buildBookingCardHTML(b, false);
 
             });
@@ -2240,377 +2270,184 @@
 
 
         // ---------------------------------------------------------
-        // STATISTICHE
-        // ---------------------------------------------------------
-
-        function updateStats() {
-
-            const totalPeople =
-                bookings.reduce(
-                    (sum, b) =>
-                        sum + b.people,
-                    0
-                );
-
-
-            const totalTables =
-                bookings.length;
-
-
-            const arrivedTables =
-                bookings.filter(
-                    b => b.arrived
-                ).length;
-
-
-            const pendingTables =
-                totalTables - arrivedTables;
-
-
-            document.getElementById(
-                'stat-total-people'
-            ).innerText = totalPeople;
-
-
-            document.getElementById(
-                'stat-arrived-tables'
-            ).innerText = arrivedTables;
-
-
-            document.getElementById(
-                'stat-total-tables'
-            ).innerText = totalTables;
-
-
-            document.getElementById(
-                'stat-pending-tables'
-            ).innerText = pendingTables;
-
-        }
-
-
-        // ---------------------------------------------------------
-        // MAPPA
+        // MAPPA SVG
         // ---------------------------------------------------------
 
         function updateMapVisuals() {
 
-            const allGroups =
-                document.querySelectorAll(
-                    'g[id^="map-t"]'
+            ALL_TABLES.forEach(t => {
+
+                const group =
+                    document.getElementById('map-t' + t);
+
+
+                if (!group) return;
+
+
+                const rect =
+                    group.querySelector('rect');
+
+                const text =
+                    group.querySelector('text');
+
+
+                if (!rect || !text) return;
+
+
+                const booking = bookings.find(
+                    b =>
+                        b.table === t ||
+                        (b.joined && b.joined.includes(t))
                 );
 
 
-            allGroups.forEach(g => {
+                rect.classList.remove(
+                    'table-free',
+                    'table-occupied',
+                    'table-arrived'
+                );
 
-                const rect =
-                    g.querySelector('rect');
-
-                const text =
-                    g.querySelector('text');
-
-
-                if (rect && text) {
-
-                    rect.className.baseVal =
-                        "table-box table-free";
-
-                    text.className.baseVal =
-                        "table-text-free";
-
-                }
-
-            });
+                text.classList.remove(
+                    'table-text-free',
+                    'table-text-occupied',
+                    'table-text-arrived'
+                );
 
 
-            bookings.forEach(b => {
+                if (!booking) {
 
-                let joinedTables = [];
+                    rect.classList.add('table-free');
 
+                    text.classList.add('table-text-free');
 
-                if (Array.isArray(b.joined)) {
+                } else if (booking.arrived) {
 
-                    joinedTables =
-                        b.joined;
+                    rect.classList.add('table-arrived');
 
-                } else if (
-                    typeof b.joined === 'string' &&
-                    b.joined.trim() !== ''
-                ) {
+                    text.classList.add('table-text-arrived');
 
-                    joinedTables =
-                        b.joined.split(',');
+                } else {
+
+                    rect.classList.add('table-occupied');
+
+                    text.classList.add('table-text-occupied');
 
                 }
-
-
-                const activeTables = [
-                    b.table,
-                    ...joinedTables
-                ]
-                    .map(t =>
-                        String(t).trim()
-                    )
-                    .filter(t => t !== '');
-
-
-                activeTables.forEach(tNum => {
-
-                    const g =
-                        document.getElementById(
-                            'map-t' + tNum
-                        );
-
-
-                    if (g) {
-
-                        const rect =
-                            g.querySelector('rect');
-
-                        const text =
-                            g.querySelector('text');
-
-
-                        if (rect && text) {
-
-                            if (b.arrived) {
-
-                                rect.className.baseVal =
-                                    "table-box table-arrived";
-
-                                text.className.baseVal =
-                                    "table-text-arrived";
-
-                            } else {
-
-                                rect.className.baseVal =
-                                    "table-box table-occupied";
-
-                                text.className.baseVal =
-                                    "table-text-occupied";
-
-                            }
-
-                        }
-
-                    }
-
-                });
 
             });
 
         }
 
 
-        // ---------------------------------------------------------
-        // CLICK MAPPA
-        // ---------------------------------------------------------
-
-        function clickMapTable(tableNum) {
-
-            const targetNum =
-                String(tableNum).trim();
-
-
-            const tableBookings =
-                bookings.filter(b => {
-
-                    let joinedTables = [];
-
-
-                    if (Array.isArray(b.joined)) {
-
-                        joinedTables =
-                            b.joined;
-
-                    } else if (
-                        typeof b.joined === 'string' &&
-                        b.joined.trim() !== ''
-                    ) {
-
-                        joinedTables =
-                            b.joined.split(',');
-
-                    }
-
-
-                    const allT = [
-                        b.table,
-                        ...joinedTables
-                    ].map(
-                        t => String(t).trim()
-                    );
-
-
-                    return allT.includes(
-                        targetNum
-                    );
-
-                });
-
+        function clickMapTable(tableNumStr) {
 
             const modal =
-                document.getElementById(
-                    'map-info-modal'
-                );
+                document.getElementById('map-info-modal');
 
+            const titleTable =
+                document.getElementById('map-modal-table');
 
-            const title =
-                document.getElementById(
-                    'map-modal-table'
-                );
-
-
-            const zoneSpan =
-                document.getElementById(
-                    'map-modal-zone'
-                );
-
+            const titleZone =
+                document.getElementById('map-modal-zone');
 
             const content =
-                document.getElementById(
-                    'map-modal-content'
-                );
+                document.getElementById('map-modal-content');
 
 
-            title.innerText =
-                `Tavolo ${tableNum}`;
+            titleTable.innerText =
+                `Tavolo ${tableNumStr}`;
+
+            titleZone.innerText =
+                getTableZone(tableNumStr);
 
 
-            zoneSpan.innerText =
-                getTableZone(tableNum);
+            const booking = bookings.find(
+                b =>
+                    b.table === tableNumStr ||
+                    (b.joined && b.joined.includes(tableNumStr))
+            );
 
 
-            if (tableBookings.length > 0) {
+            if (!booking) {
 
-                tableBookings.sort(
-                    (a, b) =>
-                        a.time.localeCompare(b.time)
-                );
+                content.innerHTML = `
 
+                    <p class="text-emerald-700 font-bold text-center py-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                        🟢 Tavolo LIBERO
+                    </p>
 
-                let html =
-                    `<div class="space-y-2">`;
+                `;
 
+            } else {
 
-                tableBookings.forEach(booking => {
-
-                    const isArr =
-                        booking.arrived || false;
+                const isArrived =
+                    booking.arrived || false;
 
 
-                    const joinedList =
-                        Array.isArray(booking.joined)
-                            ? booking.joined.join(', ')
-                            : booking.joined;
+                content.innerHTML = `
 
+                    <div class="space-y-2">
 
-                    html += `
+                        <div class="p-2.5 rounded-xl border ${
+                            isArrived
+                                ? 'bg-blue-50 border-blue-200 text-blue-900'
+                                : 'bg-rose-50 border-rose-200 text-rose-900'
+                        }">
 
-                        <div class="${
-                            isArr
-                                ? 'bg-blue-50 border-blue-200'
-                                : 'bg-rose-50 border-rose-200'
-                        } border p-2.5 rounded-xl space-y-1">
+                            <p class="font-extrabold text-xs">
+                                ${
+                                    isArrived
+                                        ? '🔵 Tavolo ARRIVATO'
+                                        : '🔴 Tavolo PRENOTATO'
+                                }
+                            </p>
 
-                            <div class="flex justify-between items-center">
+                            <p class="font-bold text-sm mt-1">
+                                ${booking.name}
+                            </p>
 
-                                <p class="font-bold ${
-                                    isArr
-                                        ? 'text-blue-800'
-                                        : 'text-rose-800'
-                                } text-sm">
-
-                                    ${booking.name}
-
-                                </p>
-
-                                <span class="${
-                                    isArr
-                                        ? 'bg-blue-200 text-blue-900'
-                                        : 'bg-rose-200 text-rose-900'
-                                } font-bold px-2 py-0.5 rounded text-[10px]">
-
-                                    ⏰ ${booking.time}
-
-                                </span>
-
-                            </div>
-
-                            <p class="text-stone-600">
-                                👥 Coperti:
-                                <strong>${booking.people}</strong>
+                            <p class="text-[11px] mt-0.5">
+                                👥 Coperti: <strong>${booking.people}</strong>
                                 ${
                                     booking.chairs > 0
-                                        ? `(${booking.chairs} seggioli)`
+                                        ? `(${booking.chairs} seg.)`
                                         : ''
                                 }
                             </p>
 
-                            <p class="text-[10px] font-bold ${
-                                isArr
-                                    ? 'text-blue-700'
-                                    : 'text-rose-700'
-                            }">
-
-                                ${
-                                    isArr
-                                        ? '✅ Stato: ARRIVATO'
-                                        : '⏳ Stato: IN ATTESA'
-                                }
-
+                            <p class="text-[11px]">
+                                ⏰ Orario: <strong>${booking.time}</strong>
                             </p>
-
-                            ${
-                                booking.joined &&
-                                joinedList
-                                    ? `
-                                        <p class="text-xs text-stone-700 font-semibold">
-                                            🔗 Tavoli uniti:
-                                            ${booking.table},
-                                            ${joinedList}
-                                        </p>
-                                    `
-                                    : ''
-                            }
-
-                            ${
-                                booking.notes
-                                    ? `
-                                        <p class="text-amber-800 font-bold bg-amber-50 p-1 rounded mt-1">
-                                            📝 ${booking.notes}
-                                        </p>
-                                    `
-                                    : ''
-                            }
 
                         </div>
 
-                    `;
 
-                });
+                        ${
+                            booking.notes
+                                ? `
+                                    <div class="bg-amber-50 p-2 rounded-xl border border-amber-200 text-[11px] text-amber-900 font-semibold">
+                                        📝 Notes: ${booking.notes}
+                                    </div>
+                                `
+                                : ''
+                        }
 
 
-                html += `</div>`;
+                        <button
+                            onclick="toggleArrived('${booking.id}'); closeMapInfoModal();"
+                            class="btn-tap w-full py-2 rounded-xl text-xs font-extrabold ${
+                                isArrived
+                                    ? 'bg-stone-200 text-stone-800'
+                                    : 'bg-blue-600 text-white shadow-md'
+                            }">
 
+                            ${
+                                isArrived
+                                    ? 'Segna come NON Arrivato'
+                                    : '✅ Segna come ARRIVATO'
+                            }
 
-                content.innerHTML =
-                    html;
-
-
-            } else {
-
-                content.innerHTML = `
-
-                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center">
-
-                        <p class="font-bold text-emerald-800">
-                            Tavolo Libero! 🟢
-                        </p>
-
-                        <p class="text-stone-500 text-[11px] mt-1">
-                            Nessuna prenotazione per questa data.
-                        </p>
+                        </button>
 
                     </div>
 
@@ -2619,41 +2456,258 @@
             }
 
 
-            modal.classList.remove(
-                'hidden'
-            );
+            modal.classList.remove('hidden');
 
         }
 
 
         function closeMapInfoModal() {
 
-            document.getElementById(
-                'map-info-modal'
-            ).classList.add('hidden');
+            document.getElementById('map-info-modal')
+                .classList.add('hidden');
 
         }
 
 
         // ---------------------------------------------------------
-        // STORICO
+        // GRAFICI & ZONE
+        // ---------------------------------------------------------
+
+        function renderZoneSummary() {
+
+            const container =
+                document.getElementById('zone-summary-list');
+
+
+            if (!container) return;
+
+
+            const zoneCounts = {};
+
+
+            bookings.forEach(b => {
+
+                const z = getTableZone(b.table);
+
+                if (!zoneCounts[z]) {
+
+                    zoneCounts[z] = {
+                        tables: 0,
+                        people: 0
+                    };
+
+                }
+
+                zoneCounts[z].tables++;
+
+                zoneCounts[z].people += (b.people || 0);
+
+            });
+
+
+            const zones = Object.keys(zoneCounts);
+
+
+            if (zones.length === 0) {
+
+                container.innerHTML = `
+
+                    <div class="text-center py-4 text-stone-400 text-xs">
+                        Nessun dato per le zone oggi.
+                    </div>
+
+                `;
+
+                return;
+
+            }
+
+
+            container.innerHTML = zones.map(z => `
+
+                <div class="bg-stone-50 border border-stone-200 p-2.5 rounded-xl flex justify-between items-center text-xs">
+
+                    <span class="font-bold text-stone-800">
+                        ${z}
+                    </span>
+
+                    <div class="flex items-center gap-3">
+
+                        <span class="bg-purple-100 text-purple-800 font-extrabold px-2 py-0.5 rounded-md border border-purple-200 text-[11px]">
+                            ${zoneCounts[z].tables} Tavoli
+                        </span>
+
+                        <span class="bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-md border border-emerald-200 text-[11px]">
+                            👥 ${zoneCounts[z].people} Coperti
+                        </span>
+
+                    </div>
+
+                </div>
+
+            `).join('');
+
+        }
+
+
+        async function renderCharts() {
+
+            const chartType =
+                document.getElementById('chart-type-select').value;
+
+            const ctx =
+                document.getElementById('chart-coperti');
+
+
+            if (!ctx) return;
+
+
+            if (myChart) {
+                myChart.destroy();
+            }
+
+
+            if (chartType === 'history') {
+
+                try {
+
+                    const snapshot = await db.collection("bookings")
+                        .get();
+
+
+                    const dailyTotals = {};
+
+
+                    snapshot.forEach(doc => {
+
+                        const data = doc.data();
+
+                        if (data.date && data.people) {
+
+                            dailyTotals[data.date] =
+                                (dailyTotals[data.date] || 0) + data.people;
+
+                        }
+
+                    });
+
+
+                    const sortedDates =
+                        Object.keys(dailyTotals).sort();
+
+                    const labels =
+                        sortedDates.map(d => {
+                            const parts = d.split('-');
+                            return `${parts[2]}/${parts[1]}`;
+                        });
+
+                    const values =
+                        sortedDates.map(d => dailyTotals[d]);
+
+
+                    myChart = new Chart(ctx, {
+
+                        type: 'line',
+
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Totale Coperti Serata',
+                                data: values,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                borderWidth: 3
+                            }]
+                        },
+
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+
+                    });
+
+                } catch (err) {
+
+                    console.error("Errore caricamento storico grafici:", err);
+
+                }
+
+            } else if (chartType === 'peaks') {
+
+                const timePeaks = {};
+
+
+                bookings.forEach(b => {
+
+                    if (b.time && b.people) {
+
+                        timePeaks[b.time] =
+                            (timePeaks[b.time] || 0) + b.people;
+
+                    }
+
+                });
+
+
+                const sortedTimes =
+                    Object.keys(timePeaks).sort();
+
+                const values =
+                    sortedTimes.map(t => timePeaks[t]);
+
+
+                myChart = new Chart(ctx, {
+
+                    type: 'bar',
+
+                    data: {
+                        labels: sortedTimes,
+                        datasets: [{
+                            label: 'Coperti in Arrivo',
+                            data: values,
+                            backgroundColor: '#2563eb',
+                            borderRadius: 8
+                        }]
+                    },
+
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+
+                });
+
+            }
+
+        }
+
+
+        // ---------------------------------------------------------
+        // STORICO GIORNI
         // ---------------------------------------------------------
 
         async function renderDaysSummary() {
 
-            const list =
-                document.getElementById(
-                    'days-summary-list'
-                );
+            const container =
+                document.getElementById('days-summary-list');
 
 
-            list.innerHTML = `
-
-                <div class="text-xs text-stone-400 text-center py-6">
-                    Caricamento storico Cloud...
-                </div>
-
-            `;
+            if (!container) return;
 
 
             try {
@@ -2662,47 +2716,42 @@
                     await db.collection("bookings").get();
 
 
-                const grouped = {};
+                const daysMap = {};
 
 
                 snapshot.forEach(doc => {
 
-                    const data =
-                        doc.data();
+                    const data = doc.data();
+
+                    if (!data.date) return;
 
 
-                    if (!grouped[data.date]) {
+                    if (!daysMap[data.date]) {
 
-                        grouped[data.date] = [];
+                        daysMap[data.date] = {
+                            tables: 0,
+                            people: 0
+                        };
 
                     }
 
+                    daysMap[data.date].tables++;
 
-                    grouped[data.date].push({
-
-                        id: doc.id,
-                        ...data
-
-                    });
+                    daysMap[data.date].people += (data.people || 0);
 
                 });
 
 
-                const dates =
-                    Object.keys(grouped)
-                        .sort()
-                        .reverse();
+                const sortedDates =
+                    Object.keys(daysMap).sort().reverse();
 
 
-                list.innerHTML = "";
+                if (sortedDates.length === 0) {
 
+                    container.innerHTML = `
 
-                if (dates.length === 0) {
-
-                    list.innerHTML = `
-
-                        <div class="text-xs text-stone-400 text-center py-6">
-                            Nessuna serata salvata nel database.
+                        <div class="text-center py-6 text-stone-400 text-xs">
+                            Nessun dato registrato nello storico.
                         </div>
 
                     `;
@@ -2712,569 +2761,65 @@
                 }
 
 
-                dates.forEach((dStr, index) => {
+                container.innerHTML = sortedDates.map(d => {
 
-                    const dayBookings =
-                        grouped[dStr];
+                    const parts = d.split('-');
 
-
-                    const totalPeople =
-                        dayBookings.reduce(
-                            (s, item) =>
-                                s + item.people,
-                            0
-                        );
+                    const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
 
 
-                    const parts =
-                        dStr.split('-');
+                    return `
 
-
-                    const container =
-                        document.createElement('div');
-
-
-                    container.className =
-                        "bg-stone-50 border border-stone-200 rounded-2xl overflow-hidden card-interactive";
-
-
-                    let dayHeaderHTML = `
-
-                        <div
-                            onclick="toggleDayDetails('day-detail-${index}')"
-                            class="p-3.5 flex justify-between items-center cursor-pointer bg-white hover:bg-stone-50 transition">
+                        <div onclick="selectHistoricalDate('${d}')"
+                            class="bg-stone-50 border border-stone-200 p-3 rounded-2xl flex justify-between items-center card-interactive cursor-pointer">
 
                             <div>
 
-                                <div class="flex items-center gap-2">
+                                <p class="font-bold text-xs text-stone-900">
+                                    📅 ${formattedDate}
+                                </p>
 
-                                    <span class="font-extrabold text-xs text-stone-900">
-                                        📅 ${parts[2]}/${parts[1]}/${parts[0]}
-                                    </span>
-
-                                    <span class="bg-emerald-100 text-emerald-800 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-200">
-                                        ${dayBookings.length} Tavoli
-                                    </span>
-
-                                </div>
-
-                                <span class="text-[10px] text-stone-400 block mt-0.5">
-                                    Tocca per dettaglio tavoli ▼
-                                </span>
+                                <p class="text-[10px] text-stone-500 font-semibold mt-0.5">
+                                    Tocca per aprire questo giorno
+                                </p>
 
                             </div>
 
-                            <span class="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                                ${totalPeople} Coperti
-                            </span>
+
+                            <div class="flex items-center gap-2">
+
+                                <span class="bg-purple-50 text-purple-800 font-extrabold px-2 py-1 rounded-xl text-xs border border-purple-200">
+                                    ${daysMap[d].tables} Tav.
+                                </span>
+
+                                <span class="bg-emerald-50 text-emerald-800 font-extrabold px-2 py-1 rounded-xl text-xs border border-emerald-200">
+                                    👥 ${daysMap[d].people} Cop.
+                                </span>
+
+                            </div>
 
                         </div>
 
                     `;
 
-
-                    let detailsHTML = `
-
-                        <div
-                            id="day-detail-${index}"
-                            class="hidden bg-stone-100/70 p-3 border-t border-stone-200 space-y-2 text-xs">
-
-                    `;
-
-
-                    dayBookings.sort(
-                        (a, b) =>
-                            a.time.localeCompare(b.time)
-                    );
-
-
-                    dayBookings.forEach(b => {
-
-                        const z =
-                            getTableZone(b.table);
-
-
-                        detailsHTML += `
-
-                            <div class="bg-white p-2.5 rounded-xl border border-stone-200 flex items-center justify-between">
-
-                                <div>
-
-                                    <span class="font-extrabold text-emerald-800">
-                                        T. ${b.table}
-                                        ${
-                                            b.joined &&
-                                            b.joined.length > 0
-                                                ? `+${b.joined.join(',')}`
-                                                : ''
-                                        }
-                                    </span>
-
-                                    <span class="text-[10px] bg-stone-100 text-stone-600 font-bold px-1.5 py-0.5 rounded ml-1 border border-stone-200">
-                                        ${z}
-                                    </span>
-
-                                    <span class="font-bold text-stone-800 ml-1">
-                                        - ${b.name}
-                                    </span>
-
-                                    ${
-                                        b.notes
-                                            ? `
-                                                <p class="text-[10px] text-amber-800 font-semibold italic mt-0.5">
-                                                    📝 ${b.notes}
-                                                </p>
-                                            `
-                                            : ''
-                                    }
-
-                                </div>
-
-                                <div class="text-right">
-
-                                    <span class="text-stone-700 font-semibold block">
-                                        👥 ${b.people} pers.
-                                    </span>
-
-                                    <span class="text-[10px] bg-stone-100 text-emerald-700 font-mono px-1.5 py-0.5 rounded font-bold border border-stone-200">
-                                        ${b.time}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-                        `;
-
-                    });
-
-
-                    detailsHTML += `</div>`;
-
-
-                    container.innerHTML =
-                        dayHeaderHTML +
-                        detailsHTML;
-
-
-                    list.appendChild(
-                        container
-                    );
-
-                });
-
+                }).join('');
 
             } catch (err) {
 
-                list.innerHTML = `
-
-                    <div class="text-xs text-rose-500 text-center py-6">
-                        Errore recupero storico:
-                        ${err.message}
-                    </div>
-
-                `;
+                console.error("Errore caricamento storico giorni:", err);
 
             }
 
         }
 
 
-        function toggleDayDetails(id) {
+        function selectHistoricalDate(dateStr) {
 
-            const el =
-                document.getElementById(id);
+            document.getElementById('current-date').value = dateStr;
 
+            loadDateData();
 
-            if (el) {
-
-                el.classList.toggle(
-                    'hidden'
-                );
-
-            }
-
-        }
-
-
-        // ---------------------------------------------------------
-        // ZONE
-        // ---------------------------------------------------------
-
-        function renderZoneSummary() {
-
-            const container =
-                document.getElementById(
-                    'zone-summary-list'
-                );
-
-
-            if (!container) return;
-
-
-            container.innerHTML = "";
-
-
-            const zones = [
-
-                "🌿 Pergolato",
-                "🪟 Zona Veranda",
-                "🚪 Ingresso",
-                "🎲 Zona Giochi",
-                "✨ Zona Nuova",
-                "Altra Zona"
-
-            ];
-
-
-            const summary = {};
-
-
-            zones.forEach(z => {
-
-                summary[z] = {
-                    tables: 0,
-                    people: 0
-                };
-
-            });
-
-
-            bookings.forEach(b => {
-
-                const z =
-                    getTableZone(b.table);
-
-
-                if (!summary[z]) {
-
-                    summary[z] = {
-                        tables: 0,
-                        people: 0
-                    };
-
-                }
-
-
-                summary[z].tables +=
-                    1 +
-                    (
-                        b.joined
-                            ? b.joined.length
-                            : 0
-                    );
-
-
-                summary[z].people +=
-                    b.people;
-
-            });
-
-
-            let hasData = false;
-
-
-            zones.forEach(z => {
-
-                if (summary[z].tables > 0) {
-
-                    hasData = true;
-
-
-                    container.innerHTML += `
-
-                        <div class="bg-stone-50 border border-stone-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
-
-                            <span class="font-bold text-stone-800">
-                                ${z}
-                            </span>
-
-                            <div class="flex gap-2">
-
-                                <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-lg border border-emerald-200">
-                                    🪑 ${summary[z].tables} Tavoli
-                                </span>
-
-                                <span class="bg-stone-200 text-stone-800 font-bold px-2 py-0.5 rounded-lg">
-                                    👥 ${summary[z].people} Coperti
-                                </span>
-
-                            </div>
-
-                        </div>
-
-                    `;
-
-                }
-
-            });
-
-
-            if (!hasData) {
-
-                container.innerHTML = `
-
-                    <p class="text-stone-400 text-xs italic text-center py-2">
-                        Nessun tavolo prenotato per oggi.
-                    </p>
-
-                `;
-
-            }
-
-        }
-
-
-        // ---------------------------------------------------------
-        // GRAFICI
-        // ---------------------------------------------------------
-
-        async function renderCharts() {
-
-            const chartType =
-                document.getElementById(
-                    'chart-type-select'
-                ).value;
-
-
-            const ctx =
-                document.getElementById(
-                    'chart-coperti'
-                ).getContext('2d');
-
-
-            if (myChart) {
-
-                myChart.destroy();
-
-            }
-
-
-            if (chartType === 'history') {
-
-                try {
-
-                    const snapshot =
-                        await db.collection("bookings").get();
-
-
-                    const grouped = {};
-
-
-                    snapshot.forEach(doc => {
-
-                        const data =
-                            doc.data();
-
-
-                        if (!grouped[data.date]) {
-
-                            grouped[data.date] = 0;
-
-                        }
-
-
-                        grouped[data.date] +=
-                            data.people;
-
-                    });
-
-
-                    const dates =
-                        Object.keys(grouped).sort();
-
-
-                    const labels =
-                        dates.map(d => {
-
-                            const parts =
-                                d.split('-');
-
-                            return `${parts[2]}/${parts[1]}`;
-
-                        });
-
-
-                    const totals =
-                        dates.map(d =>
-                            grouped[d]
-                        );
-
-
-                    myChart =
-                        new Chart(ctx, {
-
-                            type: 'bar',
-
-                            data: {
-
-                                labels,
-
-                                datasets: [{
-
-                                    label:
-                                        'Coperti Totali Serata',
-
-                                    data:
-                                        totals,
-
-                                    backgroundColor:
-                                        '#10b981',
-
-                                    borderRadius:
-                                        8
-
-                                }]
-
-                            },
-
-                            options: {
-
-                                responsive: true,
-
-                                maintainAspectRatio: false,
-
-                                plugins: {
-
-                                    legend: {
-                                        display: false
-                                    }
-
-                                }
-
-                            }
-
-                        });
-
-
-                } catch (err) {
-
-                    console.error(
-                        "Errore grafico storico:",
-                        err
-                    );
-
-                }
-
-
-            } else if (chartType === 'peaks') {
-
-                const timeSlots = [
-
-                    "19:30",
-                    "19:45",
-                    "20:00",
-                    "20:15",
-                    "20:30",
-                    "20:45",
-                    "21:00",
-                    "21:15",
-                    "21:30",
-                    "21:45",
-                    "22:00"
-
-                ];
-
-
-                let slotCounts = {};
-
-
-                timeSlots.forEach(t => {
-
-                    slotCounts[t] = 0;
-
-                });
-
-
-                bookings.forEach(b => {
-
-                    if (
-                        slotCounts[b.time] !== undefined
-                    ) {
-
-                        slotCounts[b.time] +=
-                            b.people;
-
-                    }
-
-                });
-
-
-                myChart =
-                    new Chart(ctx, {
-
-                        type: 'line',
-
-                        data: {
-
-                            labels:
-                                timeSlots,
-
-                            datasets: [{
-
-                                label:
-                                    'Persone in Arrivo',
-
-                                data:
-                                    timeSlots.map(
-                                        t =>
-                                            slotCounts[t]
-                                    ),
-
-                                borderColor:
-                                    '#059669',
-
-                                backgroundColor:
-                                    'rgba(16, 185, 129, 0.15)',
-
-                                fill: true,
-
-                                tension: 0.35,
-
-                                borderWidth: 3,
-
-                                pointBackgroundColor:
-                                    '#047857',
-
-                                pointRadius: 5
-
-                            }]
-
-                        },
-
-                        options: {
-
-                            responsive: true,
-
-                            maintainAspectRatio: false,
-
-                            plugins: {
-
-                                legend: {
-                                    display: false
-                                }
-
-                            },
-
-                            scales: {
-
-                                y: {
-
-                                    beginAtZero: true,
-
-                                    ticks: {
-                                        precision: 0
-                                    }
-
-                                }
-
-                            }
-
-                        }
-
-                    });
-
-            }
+            switchTab('tavoli');
 
         }
 
