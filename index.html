@@ -757,7 +757,17 @@
             });
 
             bookings.forEach(b => {
-                const activeTables = [b.table, ...(b.joined || [])];
+                let joinedTables = [];
+                if (Array.isArray(b.joined)) {
+                    joinedTables = b.joined;
+                } else if (typeof b.joined === 'string' && b.joined.trim() !== '') {
+                    joinedTables = b.joined.split(',');
+                }
+
+                const activeTables = [b.table, ...joinedTables]
+                    .map(t => String(t).trim())
+                    .filter(t => t !== '');
+
                 activeTables.forEach(tNum => {
                     const g = document.getElementById('map-t' + tNum);
                     if (g) {
@@ -778,7 +788,18 @@
         }
 
         function clickMapTable(tableNum) {
-            const tableBookings = bookings.filter(b => b.table === tableNum || (b.joined && b.joined.includes(tableNum)));
+            const targetNum = String(tableNum).trim();
+            const tableBookings = bookings.filter(b => {
+                let joinedTables = [];
+                if (Array.isArray(b.joined)) {
+                    joinedTables = b.joined;
+                } else if (typeof b.joined === 'string' && b.joined.trim() !== '') {
+                    joinedTables = b.joined.split(',');
+                }
+                const allT = [b.table, ...joinedTables].map(t => String(t).trim());
+                return allT.includes(targetNum);
+            });
+
             const modal = document.getElementById('map-info-modal');
             const title = document.getElementById('map-modal-table');
             const zoneSpan = document.getElementById('map-modal-zone');
@@ -792,6 +813,7 @@
                 let html = `<div class="space-y-2">`;
                 tableBookings.forEach(booking => {
                     const isArr = booking.arrived || false;
+                    const joinedList = Array.isArray(booking.joined) ? booking.joined.join(', ') : booking.joined;
                     html += `
                         <div class="${isArr ? 'bg-blue-50 border-blue-200' : 'bg-rose-50 border-rose-200'} border p-2.5 rounded-xl space-y-1">
                             <div class="flex justify-between items-center">
@@ -800,7 +822,7 @@
                             </div>
                             <p class="text-stone-600">👥 Persone: <strong>${booking.people}</strong> ${booking.chairs > 0 ? `(${booking.chairs} seggioli)` : ''}</p>
                             <p class="text-[10px] font-bold ${isArr ? 'text-blue-700' : 'text-rose-700'}">${isArr ? '✅ Stato: ARRIVATO' : '⏳ Stato: IN ATTESA'}</p>
-                            ${booking.joined && booking.joined.length > 0 ? `<p class="text-xs text-stone-700 font-semibold">🔗 Tavoli uniti: ${booking.table}, ${booking.joined.join(', ')}</p>` : ''}
+                            ${booking.joined && joinedList ? `<p class="text-xs text-stone-700 font-semibold">🔗 Tavoli uniti: ${booking.table}, ${joinedList}</p>` : ''}
                             ${booking.notes ? `<p class="text-stone-500 italic mt-1">📝 ${booking.notes}</p>` : ''}
                         </div>
                     `;
