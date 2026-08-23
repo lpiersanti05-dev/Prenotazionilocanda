@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Locanda del Convento - Gestione Prenotazioni Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -12,6 +15,33 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body, header, main, .card-interactive, input, select, button {
+            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+        }
+
+        /* Colori tavoli mappa in tema scuro */
+        .dark .table-free {
+            fill: #064e3b;
+            stroke: #10b981;
+        }
+        .dark .table-occupied {
+            fill: #450a0a;
+            stroke: #ef4444;
+        }
+        .dark .table-arrived {
+            fill: #1e3a8a;
+            stroke: #3b82f6;
+        }
+        .dark .table-text-free {
+            fill: #6ee7b7;
+        }
+        .dark .table-text-occupied {
+            fill: #fca5a5;
+        }
+        .dark .table-text-arrived {
+            fill: #93c5fd;
+        }
 
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(12px); }
@@ -85,14 +115,14 @@
     </style>
 </head>
 
-<body class="bg-stone-100 text-stone-800 min-h-screen pb-12 select-none">
+<body class="bg-stone-100 dark:bg-stone-950 text-stone-800 dark:text-stone-100 min-h-screen pb-12 select-none">
 
     <!-- Modal Avviso Errore -->
     <div id="error-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-        <div class="bg-white border-2 border-emerald-500 text-stone-800 p-6 rounded-3xl max-w-xs w-full text-center space-y-3 shadow-2xl animate-pop">
+        <div class="bg-white dark:bg-stone-800 border-2 border-emerald-500 text-stone-800 dark:text-stone-100 p-6 rounded-3xl max-w-xs w-full text-center space-y-3 shadow-2xl animate-pop">
             <div class="text-3xl animate-bounce">⚠️</div>
-            <h3 class="font-extrabold text-base text-emerald-700">Attenzione!</h3>
-            <p id="error-message" class="text-xs text-stone-600 leading-relaxed font-medium">Errore generico</p>
+            <h3 class="font-extrabold text-base text-emerald-700 dark:text-emerald-400">Attenzione!</h3>
+            <p id="error-message" class="text-xs text-stone-600 dark:text-stone-400 leading-relaxed font-medium">Errore generico</p>
             <button onclick="hideError()" class="btn-tap w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs uppercase shadow-md">
                 Ho Capito
             </button>
@@ -101,15 +131,15 @@
 
     <!-- Modal Selezione Allergeni (Servizio / Benvenuto) -->
     <div id="allergens-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white border border-stone-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-                <h3 class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">
+        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
+                <h3 class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
                     🍷 Benvenuto - Allergeni
                 </h3>
-                <button onclick="closeAllergensModal()" class="text-stone-400 font-bold text-xs">✕ Chiudi</button>
+                <button onclick="closeAllergensModal()" class="text-stone-400 dark:text-stone-500 font-bold text-xs">✕ Chiudi</button>
             </div>
 
-            <p class="text-xs text-stone-600">Seleziona gli allergeni presenti per il tavolo oppure scegli "Nessuno":</p>
+            <p class="text-xs text-stone-600 dark:text-stone-400">Seleziona gli allergeni presenti per il tavolo oppure scegli "Nessuno":</p>
 
             <form id="allergens-form" onsubmit="saveAllergens(event)" class="space-y-3">
                 <input type="hidden" id="allergens-booking-id">
@@ -118,58 +148,58 @@
                 <!-- Opzione NESSUNO -->
                 <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
                     <input type="checkbox" id="allergen-none" onchange="toggleNoneAllergen(this)" class="w-4 h-4 accent-emerald-600 rounded">
-                    <label for="allergen-none" class="text-xs font-extrabold text-emerald-800 cursor-pointer">
+                    <label for="allergen-none" class="text-xs font-extrabold text-emerald-800 dark:text-emerald-400 cursor-pointer">
                         ✅ Nessuno / Nessuna intolleranza
                     </label>
                 </div>
 
                 <div id="allergens-grid" class="grid grid-cols-2 gap-2 pt-1 text-xs">
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Glutine" class="allergen-checkbox accent-emerald-600"> 🌾 Glutine
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Crostacei" class="allergen-checkbox accent-emerald-600"> 🦐 Crostacei
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Uova" class="allergen-checkbox accent-emerald-600"> 🥚 Uova
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Pesce" class="allergen-checkbox accent-emerald-600"> 🐟 Pesce
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Arachidi" class="allergen-checkbox accent-emerald-600"> 🥜 Arachidi
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Soia" class="allergen-checkbox accent-emerald-600"> 🫛 Soia
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Latte" class="allergen-checkbox accent-emerald-600"> 🥛 Latte
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Frutta a guscio" class="allergen-checkbox accent-emerald-600"> 🌰 Frutta a guscio
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Sedano" class="allergen-checkbox accent-emerald-600"> 🥬 Sedano
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Senape" class="allergen-checkbox accent-emerald-600"> 🟡 Senape
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Sesamo" class="allergen-checkbox accent-emerald-600"> 🥯 Sesamo
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Anidride solforosa" class="allergen-checkbox accent-emerald-600"> 🍷 Solfiti
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Lupini" class="allergen-checkbox accent-emerald-600"> 🫘 Lupini
                     </label>
-                    <label class="flex items-center gap-2 bg-stone-50 p-2 rounded-xl border border-stone-200 cursor-pointer">
+                    <label class="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-700 cursor-pointer">
                         <input type="checkbox" value="Molluschi" class="allergen-checkbox accent-emerald-600"> 🦪 Molluschi
                     </label>
                 </div>
 
                 <div class="flex gap-2 pt-2">
-                    <button type="button" onclick="closeAllergensModal()" class="btn-tap w-1/2 bg-stone-200 text-stone-700 font-bold py-2.5 rounded-xl text-xs uppercase">
+                    <button type="button" onclick="closeAllergensModal()" class="btn-tap w-1/2 bg-stone-200 text-stone-700 dark:text-stone-300 font-bold py-2.5 rounded-xl text-xs uppercase">
                         Annulla
                     </button>
                     <button type="submit" class="btn-tap w-1/2 bg-emerald-600 text-white font-extrabold py-2.5 rounded-xl text-xs uppercase shadow-md">
@@ -182,14 +212,14 @@
 
     <!-- Modal Modifica Prenotazione -->
     <div id="edit-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white border border-stone-200 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
+        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
 
-            <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-                <h3 class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">
+            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
+                <h3 class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
                     ✏️ Modifica Prenotazione
                 </h3>
 
-                <button onclick="closeEditModal()" class="text-stone-400 font-bold text-xs">
+                <button onclick="closeEditModal()" class="text-stone-400 dark:text-stone-500 font-bold text-xs">
                     ✕ Chiudi
                 </button>
             </div>
@@ -199,29 +229,29 @@
                 <input type="hidden" id="edit-id">
 
                 <div>
-                    <label class="block text-xs font-semibold text-stone-600 mb-1">
+                    <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                         Nome Cliente / Riferimento
                     </label>
                     <input type="text" id="edit-name" required
-                        class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                        class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
 
                     <div>
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             N° Tavolo
                         </label>
                         <input type="text" id="edit-table" required
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             🪑 Tavoli Uniti
                         </label>
                         <input type="text" id="edit-joined" placeholder="es. 12, 13"
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800 placeholder-stone-400">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500">
                     </div>
 
                 </div>
@@ -229,12 +259,12 @@
                 <div class="grid grid-cols-2 gap-3">
 
                     <div>
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             Persone
                         </label>
 
                         <select id="edit-people" required
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
 
                             <option value="1">1 Persona</option>
                             <option value="2">2 Persone</option>
@@ -262,22 +292,22 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             🪑 Seggioloni
                         </label>
                         <input type="number" id="edit-chairs" min="0"
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                     </div>
 
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-stone-600 mb-1">
+                    <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                         Orario Arrivo
                     </label>
 
                     <select id="edit-time" required
-                        class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-emerald-700 font-bold">
+                        class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-emerald-700 dark:text-emerald-400 font-bold">
 
                         <option value="19:30">19:30</option>
                         <option value="19:45">19:45</option>
@@ -295,17 +325,17 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-stone-600 mb-1">
+                    <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                         Note / Intolleranze
                     </label>
                     <input type="text" id="edit-notes"
-                        class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                        class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                 </div>
 
                 <div class="flex gap-2 pt-2">
 
                     <button type="button" onclick="closeEditModal()"
-                        class="btn-tap w-1/2 bg-stone-200 text-stone-700 font-bold py-2.5 rounded-xl text-xs uppercase">
+                        class="btn-tap w-1/2 bg-stone-200 text-stone-700 dark:text-stone-300 font-bold py-2.5 rounded-xl text-xs uppercase">
                         Annulla
                     </button>
 
@@ -322,23 +352,23 @@
 
     <!-- Modal Dettaglio Tavolo Mappa -->
     <div id="map-info-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white border border-stone-200 rounded-3xl max-w-xs w-full p-5 space-y-3 shadow-2xl animate-pop">
+        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-xs w-full p-5 space-y-3 shadow-2xl animate-pop">
 
-            <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
 
                 <div class="flex items-center gap-2">
                     <span id="map-modal-table"
-                        class="bg-emerald-100 text-emerald-800 font-black px-3 py-1 rounded-xl text-xs border border-emerald-300">
+                        class="bg-emerald-100 text-emerald-800 dark:text-emerald-400 font-black px-3 py-1 rounded-xl text-xs border border-emerald-300">
                         Tavolo --
                     </span>
 
                     <span id="map-modal-zone"
-                        class="bg-stone-100 text-stone-700 font-bold px-2 py-0.5 rounded-lg text-[10px]">
+                        class="bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold px-2 py-0.5 rounded-lg text-[10px]">
                         --
                     </span>
                 </div>
 
-                <button onclick="closeMapInfoModal()" class="text-stone-400 font-bold text-xs">
+                <button onclick="closeMapInfoModal()" class="text-stone-400 dark:text-stone-500 font-bold text-xs">
                     ✕ Chiudi
                 </button>
 
@@ -351,14 +381,14 @@
 
     <!-- Modal Lista Statistiche (Coperti / Arrivati / Prenotati / In Arrivo) -->
     <div id="stat-list-modal" class="hidden fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white border border-stone-200 rounded-3xl max-w-sm w-full p-5 space-y-3 shadow-2xl animate-pop max-h-[85vh] overflow-y-auto">
+        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-3 shadow-2xl animate-pop max-h-[85vh] overflow-y-auto">
 
-            <div class="flex items-center justify-between border-b border-stone-100 pb-2 sticky top-0 bg-white">
-                <h3 id="stat-modal-title" class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">
+            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2 sticky top-0 bg-white dark:bg-stone-800">
+                <h3 id="stat-modal-title" class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
                     Lista
                 </h3>
 
-                <button onclick="closeStatModal()" class="text-stone-400 font-bold text-xs">
+                <button onclick="closeStatModal()" class="text-stone-400 dark:text-stone-500 font-bold text-xs">
                     ✕ Chiudi
                 </button>
             </div>
@@ -369,7 +399,7 @@
     </div>
 
     <!-- HEADER -->
-    <header class="bg-white border-b border-stone-200 p-4 sticky top-0 z-20 shadow-sm">
+    <header class="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 p-4 sticky top-0 z-20 shadow-sm">
 
         <div class="max-w-md mx-auto flex flex-col gap-3">
 
@@ -377,26 +407,48 @@
 
                 <div class="flex items-center gap-3">
 
-                    <img src="https://via.placeholder.com/100?text=LOC"
-                        alt="Logo Locanda"
-                        class="w-10 h-10 rounded-2xl object-cover border border-emerald-300 shadow-sm">
+                    <div class="relative">
+
+                        <img id="logo-img"
+                            src="https://via.placeholder.com/100?text=LOC"
+                            alt="Logo Locanda"
+                            onclick="document.getElementById('logo-file-input').click()"
+                            class="btn-tap w-10 h-10 rounded-2xl object-cover border border-emerald-300 shadow-sm cursor-pointer">
+
+                        <span onclick="document.getElementById('logo-file-input').click()"
+                            class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center border border-white dark:border-stone-800 cursor-pointer shadow-sm">
+                            📷
+                        </span>
+
+                        <input type="file"
+                            id="logo-file-input"
+                            accept="image/*"
+                            class="hidden"
+                            onchange="changeLogo(event)">
+
+                    </div>
 
                     <div>
-                        <h1 class="font-extrabold text-base text-stone-900 leading-tight">
+                        <h1 class="font-extrabold text-base text-stone-900 dark:text-stone-100 leading-tight">
                             Locanda Del Convento
                         </h1>
 
-                        <p class="text-[11px] text-emerald-600 font-semibold">
+                        <p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
                             Arrosticini • Pizze • Cloud Real-time ⚡
                         </p>
                     </div>
 
                 </div>
 
+                <button onclick="toggleTheme()"
+                    class="btn-tap w-9 h-9 rounded-xl bg-stone-100 dark:bg-stone-950 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-sm shadow-sm">
+                    <span id="theme-toggle-icon">🌙</span>
+                </button>
+
             </div>
 
             <!-- NAVIGAZIONE -->
-            <div class="flex bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs font-semibold gap-1 overflow-x-auto">
+            <div class="flex bg-stone-100 dark:bg-stone-950 p-1 rounded-xl border border-stone-200 dark:border-stone-700 text-xs font-semibold gap-1 overflow-x-auto">
 
                 <button id="btn-tab-tavoli"
                     onclick="switchTab('tavoli')"
@@ -406,31 +458,31 @@
 
                 <button id="btn-tab-servizio"
                     onclick="switchTab('servizio')"
-                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">
+                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 whitespace-nowrap">
                     🍷 Servizio
                 </button>
 
                 <button id="btn-tab-cerca"
                     onclick="switchTab('cerca')"
-                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">
+                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 whitespace-nowrap">
                     🔍 Cerca
                 </button>
 
                 <button id="btn-tab-mappa"
                     onclick="switchTab('mappa')"
-                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">
+                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 whitespace-nowrap">
                     🗺️ Mappa
                 </button>
 
                 <button id="btn-tab-giorni"
                     onclick="switchTab('giorni')"
-                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">
+                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 whitespace-nowrap">
                     📅 Storico
                 </button>
 
                 <button id="btn-tab-grafici"
                     onclick="switchTab('grafici')"
-                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 hover:text-stone-900 whitespace-nowrap">
+                    class="btn-tap px-2.5 py-1.5 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 whitespace-nowrap">
                     📊 Grafici
                 </button>
 
@@ -449,43 +501,43 @@
         <section id="tab-tavoli" class="space-y-6 animate-fade-in">
 
             <!-- GIORNO ATTIVO -->
-            <div class="bg-white border border-stone-200 p-3.5 rounded-2xl flex items-center justify-between shadow-sm card-interactive">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-3.5 rounded-2xl flex items-center justify-between shadow-sm card-interactive">
 
-                <label class="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                <label class="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
                     GIORNO ATTIVO:
                 </label>
 
                 <input type="date"
                     id="current-date"
-                    class="bg-stone-50 border border-stone-200 rounded-xl px-3 py-1.5 text-xs text-emerald-700 font-bold outline-none"
+                    class="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-bold outline-none"
                     onchange="loadDateData()">
 
             </div>
 
             <!-- CONTATORE SINTETICO -->
-            <div class="bg-white border border-stone-200 p-4 rounded-2xl space-y-3 shadow-sm card-interactive">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl space-y-3 shadow-sm card-interactive">
 
-                <div class="flex justify-between items-center border-b border-stone-100 pb-2">
+                <div class="flex justify-between items-center border-b border-stone-100 dark:border-stone-700 pb-2">
 
-                    <span class="text-xs text-stone-500 font-medium">
+                    <span class="text-xs text-stone-500 dark:text-stone-400 font-medium">
                         Riepilogo Serata
                     </span>
 
-                    <p id="stat-date-display" class="text-xs text-emerald-700 font-bold">
+                    <p id="stat-date-display" class="text-xs text-emerald-700 dark:text-emerald-400 font-bold">
                         --/--/----
                     </p>
 
                 </div>
 
-                <p class="text-[10px] text-stone-400 -mt-1">
+                <p class="text-[10px] text-stone-400 dark:text-stone-500 -mt-1">
                     Tocca una casella per vedere l'elenco dettagliato
                 </p>
 
                 <div class="grid grid-cols-4 gap-2 text-center">
 
                     <div onclick="showStatModal('all')" class="btn-tap cursor-pointer bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
-                        <span id="stat-total-people" class="text-lg font-black text-emerald-700">0</span>
-                        <span class="text-[9px] text-emerald-800 block font-bold uppercase">Coperti</span>
+                        <span id="stat-total-people" class="text-lg font-black text-emerald-700 dark:text-emerald-400">0</span>
+                        <span class="text-[9px] text-emerald-800 dark:text-emerald-400 block font-bold uppercase">Coperti</span>
                     </div>
 
                     <div onclick="showStatModal('arrived')" class="btn-tap cursor-pointer bg-blue-50 border border-blue-200 p-2 rounded-xl">
@@ -507,7 +559,7 @@
             </div>
 
             <!-- WALK-IN -->
-            <div class="bg-white border border-amber-200 p-5 rounded-2xl space-y-4 shadow-sm card-interactive">
+            <div class="bg-white dark:bg-stone-800 border border-amber-200 p-5 rounded-2xl space-y-4 shadow-sm card-interactive">
 
                 <div class="flex items-center justify-between border-b border-amber-100 pb-3">
 
@@ -523,14 +575,14 @@
 
                 <div class="space-y-1">
 
-                    <label class="block text-[11px] font-bold text-stone-600">
+                    <label class="block text-[11px] font-bold text-stone-600 dark:text-stone-400">
                         🪑 Tavoli attualmente liberi:
                     </label>
 
                     <div id="free-tables-list"
-                        class="flex flex-wrap gap-1.5 p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs max-h-24 overflow-y-auto">
+                        class="flex flex-wrap gap-1.5 p-2 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl text-xs max-h-24 overflow-y-auto">
 
-                        <span class="text-stone-400 text-xs italic">
+                        <span class="text-stone-400 dark:text-stone-500 text-xs italic">
                             Caricamento tavoli...
                         </span>
 
@@ -541,7 +593,7 @@
                 <form id="walkin-form" onsubmit="addWalkin(event)" class="space-y-3">
 
                     <div>
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             N° Tavolo Assegnato
                         </label>
 
@@ -549,13 +601,13 @@
                             id="walkin-table"
                             placeholder="es. 5"
                             required
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
 
                         <div>
-                            <label class="block text-xs font-semibold text-stone-600 mb-1">
+                            <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                                 Persone
                             </label>
 
@@ -564,11 +616,11 @@
                                 min="1"
                                 value="2"
                                 required
-                                class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                                class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-stone-600 mb-1">
+                            <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                                 🪑 Seggioloni
                             </label>
 
@@ -576,20 +628,20 @@
                                 id="walkin-chairs"
                                 min="0"
                                 value="0"
-                                class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                                class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                         </div>
 
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             Note / Allergie / Intolleranze
                         </label>
 
                         <input type="text"
                             id="walkin-notes"
                             placeholder="es. Intollerante al lattosio, 1 seggiolone"
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                     </div>
 
                     <button type="submit"
@@ -601,15 +653,15 @@
             </div>
 
             <!-- NUOVA PRENOTAZIONE -->
-            <div class="bg-white border border-stone-200 p-5 rounded-2xl space-y-4 shadow-sm card-interactive">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-5 rounded-2xl space-y-4 shadow-sm card-interactive">
 
-                <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+                <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-3">
 
-                    <h2 class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">
+                    <h2 class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
                         NUOVA PRENOTAZIONE
                     </h2>
 
-                    <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+                    <span class="text-[10px] bg-emerald-100 text-emerald-800 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
                         Sync Cloud ⚡
                     </span>
 
@@ -618,7 +670,7 @@
                 <form id="booking-form" onsubmit="addBooking(event)" class="space-y-3">
 
                     <div>
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             Nome Cliente / Riferimento
                         </label>
 
@@ -626,13 +678,13 @@
                             id="input-name"
                             placeholder="es. Serena, Rossi"
                             required
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
 
                         <div>
-                            <label class="block text-xs font-semibold text-stone-600 mb-1">
+                            <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                                 N° Tavolo
                             </label>
 
@@ -640,18 +692,18 @@
                                 id="input-table"
                                 placeholder="es. 15"
                                 required
-                                class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                                class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-stone-600 mb-1">
+                            <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                                 🪑 Tavoli Uniti (Opzionale)
                             </label>
 
                             <input type="text"
                                 id="input-joined"
                                 placeholder="es. 12, 13"
-                                class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800 placeholder-stone-400">
+                                class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500">
                         </div>
 
                     </div>
@@ -659,13 +711,13 @@
                     <div class="grid grid-cols-2 gap-3">
 
                         <div>
-                            <label class="block text-xs font-semibold text-stone-600 mb-1">
+                            <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                                 Persone Prenotate
                             </label>
 
                             <select id="input-people"
                                 required
-                                class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                                class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
 
                                 <option value="1">1 Persona</option>
                                 <option value="2" selected>2 Persone</option>
@@ -693,7 +745,7 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-stone-600 mb-1">
+                            <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                                 🪑 Seggioloni
                             </label>
 
@@ -701,20 +753,20 @@
                                 id="input-chairs"
                                 min="0"
                                 value="0"
-                                class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                                class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
                         </div>
 
                     </div>
 
                     <div>
 
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             Orario Arrivo
                         </label>
 
                         <select id="input-time"
                             required
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-emerald-700 font-bold">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-emerald-700 dark:text-emerald-400 font-bold">
 
                             <option value="19:30">19:30</option>
                             <option value="19:45">19:45</option>
@@ -734,14 +786,14 @@
 
                     <div>
 
-                        <label class="block text-xs font-semibold text-stone-600 mb-1">
+                        <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                             Note / Allergie / Intolleranze
                         </label>
 
                         <input type="text"
                             id="input-notes"
                             placeholder="es. Celiaco, seggiolone al tavolo, compleanno"
-                            class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-stone-800">
+                            class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-stone-800 dark:text-stone-100">
 
                     </div>
 
@@ -757,7 +809,7 @@
             <!-- DETTAGLIO SCHEDE PRENOTAZIONI -->
             <div class="space-y-3">
 
-                <h3 class="font-bold text-xs uppercase tracking-wider text-emerald-800 px-1">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-emerald-800 dark:text-emerald-400 px-1">
                     Dettaglio Tavoli Serata
                 </h3>
 
@@ -774,17 +826,17 @@
         <section id="tab-servizio" class="hidden space-y-4 animate-fade-in">
 
             <!-- HEADER SERVIZIO -->
-            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm">
 
                 <div class="flex items-center justify-between">
 
                     <div>
 
-                        <h2 class="font-extrabold text-sm text-stone-800 uppercase tracking-wider">
+                        <h2 class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
                             🍷 Stato del Servizio
                         </h2>
 
-                        <p class="text-[11px] text-stone-500 mt-1">
+                        <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">
                             Gestione tavoli arrivati, benvenuto e comande
                         </p>
 
@@ -825,9 +877,9 @@
 
         <section id="tab-cerca" class="hidden space-y-4 animate-fade-in">
 
-            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-3">
 
-                <h2 class="font-bold text-sm text-stone-800">
+                <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
                     Ricerca Rapida Tavolo / Nome
                 </h2>
 
@@ -837,9 +889,9 @@
                         id="search-input"
                         onkeyup="searchBookings()"
                         placeholder="Inserisci N° Tavolo o Nome cliente..."
-                        class="w-full bg-stone-50 border border-stone-300 rounded-xl p-3 pl-9 text-xs text-stone-800 outline-none focus:border-emerald-500 font-semibold">
+                        class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-xl p-3 pl-9 text-xs text-stone-800 dark:text-stone-100 outline-none focus:border-emerald-500 font-semibold">
 
-                    <span class="absolute left-3 top-3 text-stone-400 text-xs">
+                    <span class="absolute left-3 top-3 text-stone-400 dark:text-stone-500 text-xs">
                         🔍
                     </span>
 
@@ -849,7 +901,7 @@
 
             <div id="search-results" class="space-y-2">
 
-                <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">
+                <div class="text-center py-8 text-stone-400 dark:text-stone-500 text-xs border border-dashed border-stone-300 dark:border-stone-600 rounded-2xl">
                     Digita un numero di tavolo o un nome per cercare.
                 </div>
 
@@ -866,17 +918,17 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                 <!-- MAPPA PRINCIPALE -->
-                <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+                <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-3">
 
                     <div class="flex justify-between items-center">
 
                         <div>
 
-                            <h2 class="font-bold text-sm text-stone-800">
+                            <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
                                 Piantina Locale - Sala Principale
                             </h2>
 
-                            <p class="text-[11px] text-stone-500">
+                            <p class="text-[11px] text-stone-500 dark:text-stone-400">
                                 🟢 Libero | 🔴 Prenotato | 🔵 Arrivato
                             </p>
 
@@ -884,7 +936,7 @@
 
                     </div>
 
-                    <div class="w-full overflow-x-auto border border-stone-200 rounded-2xl bg-stone-50 p-2">
+                    <div class="w-full overflow-x-auto border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-900 p-2">
 
                         <svg viewBox="0 0 520 820" class="w-full h-auto max-w-full">
 
@@ -959,17 +1011,17 @@
                 </div>
 
                 <!-- MAPPA ZONA NUOVA -->
-                <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+                <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-3">
 
                     <div class="flex justify-between items-center">
 
                         <div>
 
-                            <h2 class="font-bold text-sm text-stone-800">
+                            <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
                                 🆕 Piantina Locale - Zona Nuova
                             </h2>
 
-                            <p class="text-[11px] text-stone-500">
+                            <p class="text-[11px] text-stone-500 dark:text-stone-400">
                                 🟢 Libero | 🔴 Prenotato | 🔵 Arrivato
                             </p>
 
@@ -977,7 +1029,7 @@
 
                     </div>
 
-                    <div class="w-full overflow-x-auto border border-stone-200 rounded-2xl bg-stone-50 p-2">
+                    <div class="w-full overflow-x-auto border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-900 p-2">
 
                         <svg viewBox="0 0 520 700" class="w-full h-auto max-w-full">
 
@@ -1031,15 +1083,15 @@
 
         <section id="tab-giorni" class="hidden space-y-4 animate-fade-in">
 
-            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-3">
 
-                <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+                <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
 
-                    <h2 class="font-bold text-sm text-stone-800">
+                    <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
                         Albo Storico Serate
                     </h2>
 
-                    <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <span class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                         Tocca un giorno per il riassunto
                     </span>
 
@@ -1057,9 +1109,9 @@
 
         <section id="tab-grafici" class="hidden space-y-4 animate-fade-in">
 
-            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-3">
 
-                <h2 class="font-bold text-sm text-stone-800 border-b border-stone-100 pb-2">
+                <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100 border-b border-stone-100 dark:border-stone-700 pb-2">
                     📍 Riepilogo Prenotazioni per Area (Giorno Attivo)
                 </h2>
 
@@ -1067,11 +1119,11 @@
 
             </div>
 
-            <div class="bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-4">
+            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-4">
 
-                <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+                <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-3">
 
-                    <h2 class="font-bold text-sm text-stone-800">
+                    <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
                         Analisi e Statistiche
                     </h2>
 
@@ -1079,13 +1131,13 @@
 
                 <div>
 
-                    <label class="block text-xs font-semibold text-stone-600 mb-1">
+                    <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">
                         Seleziona Vista Grafico
                     </label>
 
                     <select id="chart-type-select"
                         onchange="renderCharts()"
-                        class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-xs text-emerald-700 font-bold outline-none">
+                        class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-2.5 text-xs text-emerald-700 dark:text-emerald-400 font-bold outline-none">
 
                         <option value="history">
                             📅 Andamento Coperti (Storico Serate)
@@ -1157,11 +1209,70 @@
         let bookings = [];
         let myChart = null;
         let unsubscribeListener = null;
+        let isDarkMode = false;
 
 
         window.onload = function() {
             loadDateData();
         };
+
+
+        // ---------------------------------------------------------
+        // TEMA CHIARO / SCURO
+        // ---------------------------------------------------------
+
+        function toggleTheme() {
+
+            isDarkMode = !isDarkMode;
+
+            document.documentElement.classList.toggle('dark', isDarkMode);
+
+            document.getElementById('theme-toggle-icon').innerText =
+                isDarkMode ? '☀️' : '🌙';
+
+            // Ridisegna il grafico coi colori giusti per il tema attivo
+            if (myChart) {
+                renderCharts();
+            }
+
+        }
+
+
+        // ---------------------------------------------------------
+        // CAMBIO LOGO (Foto da Galleria)
+        // ---------------------------------------------------------
+
+        function changeLogo(e) {
+
+            const file = e.target.files[0];
+
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+
+                showError("Il file selezionato non è un'immagine valida.");
+
+                return;
+
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function(ev) {
+
+                document.getElementById('logo-img').src = ev.target.result;
+
+            };
+
+            reader.onerror = function() {
+
+                showError("Impossibile caricare l'immagine selezionata.");
+
+            };
+
+            reader.readAsDataURL(file);
+
+        }
 
 
         // ---------------------------------------------------------
@@ -1213,7 +1324,7 @@
                     'shadow-md'
                 );
 
-                btn.classList.add('text-stone-500');
+                btn.classList.add('text-stone-500 dark:text-stone-400');
 
             });
 
@@ -1231,7 +1342,7 @@
                 'shadow-md'
             );
 
-            activeBtn.classList.remove('text-stone-500');
+            activeBtn.classList.remove('text-stone-500 dark:text-stone-400');
 
 
             if (tab === 'mappa') {
@@ -1987,7 +2098,7 @@
             if (bookings.length === 0) {
 
                 listContainer.innerHTML = `
-                    <div class="bg-white border border-dashed border-stone-300 p-8 text-center rounded-2xl text-stone-400 text-xs">
+                    <div class="bg-white dark:bg-stone-800 border border-dashed border-stone-300 dark:border-stone-600 p-8 text-center rounded-2xl text-stone-400 dark:text-stone-500 text-xs">
                         Nessuna prenotazione per questo giorno.
                     </div>
                 `;
@@ -2009,7 +2120,7 @@
 
                 const zoneStr = getTableZone(b.table);
 
-                const cardBg = isArrived ? 'bg-blue-50/70 border-blue-200' : 'bg-white border-stone-200';
+                const cardBg = isArrived ? 'bg-blue-50/70 border-blue-200' : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700';
 
 
                 let joinedBadges = '';
@@ -2017,7 +2128,7 @@
                 if (b.joined && b.joined.length > 0) {
 
                     joinedBadges = b.joined.map(j => `
-                        <span class="bg-stone-100 text-stone-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-stone-200">
+                        <span class="bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-1.5 py-0.5 rounded text-[10px] font-bold border border-stone-200 dark:border-stone-700">
                             +T${j}
                         </span>
                     `).join(' ');
@@ -2069,7 +2180,7 @@
 
                             ${joinedBadges}
 
-                            <span class="font-extrabold text-xs text-stone-900">
+                            <span class="font-extrabold text-xs text-stone-900 dark:text-stone-100">
                                 ${b.name}
                             </span>
 
@@ -2077,13 +2188,13 @@
 
                         </div>
 
-                        <span class="font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                        <span class="font-bold text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
                             🕒 ${b.time}
                         </span>
 
                     </div>
 
-                    <div class="flex items-center justify-between text-xs text-stone-600">
+                    <div class="flex items-center justify-between text-xs text-stone-600 dark:text-stone-400">
 
                         <div class="flex items-center gap-2">
 
@@ -2093,7 +2204,7 @@
 
                             ${chairsBadge}
 
-                            <span class="text-[10px] bg-stone-100 px-2 py-0.5 rounded text-stone-500 font-medium">
+                            <span class="text-[10px] bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded text-stone-500 dark:text-stone-400 font-medium">
                                 ${zoneStr}
                             </span>
 
@@ -2102,7 +2213,7 @@
                         <div class="flex gap-1">
 
                             <button onclick="openEditModal('${b.id}')"
-                                class="btn-tap px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg font-bold text-[11px]">
+                                class="btn-tap px-2 py-1 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 rounded-lg font-bold text-[11px]">
                                 ✏️
                             </button>
 
@@ -2116,7 +2227,7 @@
                     </div>
 
                     ${b.notes ? `
-                        <div class="bg-stone-50 border border-stone-200 p-2 rounded-xl text-[11px] text-stone-600 font-medium">
+                        <div class="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-2 rounded-xl text-[11px] text-stone-600 dark:text-stone-400 font-medium">
                             📝 ${b.notes}
                         </div>
                     ` : ''}
@@ -2125,7 +2236,7 @@
                         class="btn-tap w-full py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-sm transition-all ${
                             isArrived
                                 ? 'bg-blue-600 text-white'
-                                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                                : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
                         }">
                         ${isArrived ? '✓ CLIENTE ARRIVATO AL TAVOLO' : '👉 SEGNALA COME ARRIVATO'}
                     </button>
@@ -2157,7 +2268,7 @@
             if (arrivedBookings.length === 0) {
 
                 container.innerHTML = `
-                    <div class="bg-white border border-dashed border-stone-300 p-8 text-center rounded-2xl text-stone-400 text-xs">
+                    <div class="bg-white dark:bg-stone-800 border border-dashed border-stone-300 dark:border-stone-600 p-8 text-center rounded-2xl text-stone-400 dark:text-stone-500 text-xs">
                         Nessun tavolo arrivato al momento.
                     </div>
                 `;
@@ -2184,7 +2295,7 @@
                 const card = document.createElement('div');
 
                 card.className =
-                    'bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-3 card-interactive animate-fade-in';
+                    'bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-3 card-interactive animate-fade-in';
 
 
                 const welcomeActive = b.welcome;
@@ -2194,7 +2305,7 @@
 
                 card.innerHTML = `
 
-                    <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+                    <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
 
                         <div class="flex items-center gap-2">
 
@@ -2204,11 +2315,11 @@
 
                             <div>
 
-                                <h4 class="font-extrabold text-xs text-stone-900">
+                                <h4 class="font-extrabold text-xs text-stone-900 dark:text-stone-100">
                                     ${b.name}
                                 </h4>
 
-                                <p class="text-[10px] text-stone-400 font-medium">
+                                <p class="text-[10px] text-stone-400 dark:text-stone-500 font-medium">
                                     👥 ${b.people} Persone • ${getTableZone(b.table)}
                                 </p>
 
@@ -2235,7 +2346,7 @@
                             class="btn-tap py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
                                 welcomeActive
                                     ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
-                                    : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'
+                                    : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:bg-stone-100'
                             }">
                             ${welcomeActive ? '✓ Benvenuto' : '🍷 Benvenuto'}
                         </button>
@@ -2244,7 +2355,7 @@
                             class="btn-tap py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
                                 orderedActive
                                     ? 'bg-purple-600 border-purple-600 text-white shadow-md'
-                                    : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'
+                                    : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:bg-stone-100'
                             }">
                             ${orderedActive ? '✓ Comandato' : '📝 Comandato'}
                         </button>
@@ -2310,7 +2421,7 @@
                 const chip = document.createElement('span');
 
                 chip.className =
-                    'bg-emerald-100 border border-emerald-300 text-emerald-800 font-extrabold px-2 py-0.5 rounded-lg text-[11px] cursor-pointer hover:bg-emerald-200';
+                    'bg-emerald-100 border border-emerald-300 text-emerald-800 dark:text-emerald-400 font-extrabold px-2 py-0.5 rounded-lg text-[11px] cursor-pointer hover:bg-emerald-200';
 
                 chip.innerText = `T${t}`;
 
@@ -2344,7 +2455,7 @@
             if (!query) {
 
                 container.innerHTML = `
-                    <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-300 rounded-2xl">
+                    <div class="text-center py-8 text-stone-400 dark:text-stone-500 text-xs border border-dashed border-stone-300 dark:border-stone-600 rounded-2xl">
                         Digita un numero di tavolo o un nome per cercare.
                     </div>
                 `;
@@ -2375,7 +2486,7 @@
             if (results.length === 0) {
 
                 container.innerHTML = `
-                    <div class="text-center py-8 text-rose-500 font-semibold text-xs bg-white border border-stone-200 rounded-2xl">
+                    <div class="text-center py-8 text-rose-500 font-semibold text-xs bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl">
                         Nessuna prenotazione trovata per "${query}".
                     </div>
                 `;
@@ -2392,7 +2503,7 @@
                 const card = document.createElement('div');
 
                 card.className =
-                    'bg-white border border-stone-200 p-4 rounded-2xl shadow-sm space-y-2 card-interactive animate-fade-in';
+                    'bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm space-y-2 card-interactive animate-fade-in';
 
 
                 card.innerHTML = `
@@ -2405,24 +2516,24 @@
                                 T${b.table}
                             </span>
 
-                            <h4 class="font-extrabold text-xs text-stone-900">
+                            <h4 class="font-extrabold text-xs text-stone-900 dark:text-stone-100">
                                 ${b.name}
                             </h4>
 
                         </div>
 
-                        <span class="font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                        <span class="font-bold text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
                             🕒 ${b.time}
                         </span>
 
                     </div>
 
-                    <p class="text-xs text-stone-600 font-medium">
+                    <p class="text-xs text-stone-600 dark:text-stone-400 font-medium">
                         👥 ${b.people} Persone • ${getTableZone(b.table)}
                     </p>
 
                     ${b.notes ? `
-                        <div class="bg-stone-50 border border-stone-200 p-2 rounded-xl text-[11px] text-stone-600 font-medium">
+                        <div class="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-2 rounded-xl text-[11px] text-stone-600 dark:text-stone-400 font-medium">
                             📝 ${b.notes}
                         </div>
                     ` : ''}
@@ -2431,7 +2542,7 @@
                         class="btn-tap w-full py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-sm ${
                             isArrived
                                 ? 'bg-blue-600 text-white'
-                                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                                : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
                         }">
                         ${isArrived ? '✓ CLIENTE ARRIVATO' : '👉 SEGNALA COME ARRIVATO'}
                     </button>
@@ -2538,7 +2649,7 @@
             if (filtered.length === 0) {
 
                 content.innerHTML = `
-                    <div class="text-center py-6 text-stone-400 text-xs">
+                    <div class="text-center py-6 text-stone-400 dark:text-stone-500 text-xs">
                         Nessun tavolo in questo elenco.
                     </div>
                 `;
@@ -2554,7 +2665,7 @@
                     const item = document.createElement('div');
 
                     item.className =
-                        'p-3 border border-stone-200 rounded-xl bg-stone-50 flex items-center justify-between';
+                        'p-3 border border-stone-200 dark:border-stone-700 rounded-xl bg-stone-50 dark:bg-stone-900 flex items-center justify-between';
 
 
                     item.innerHTML = `
@@ -2567,13 +2678,13 @@
                                     T${b.table}
                                 </span>
 
-                                <span class="font-extrabold text-stone-800 text-xs">
+                                <span class="font-extrabold text-stone-800 dark:text-stone-100 text-xs">
                                     ${b.name}
                                 </span>
 
                             </div>
 
-                            <p class="text-[10px] text-stone-500 font-medium mt-0.5">
+                            <p class="text-[10px] text-stone-500 dark:text-stone-400 font-medium mt-0.5">
                                 👥 ${b.people} Persone • 🕒 ${b.time}
                             </p>
 
@@ -2698,11 +2809,11 @@
 
                     <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2">
 
-                        <p class="font-extrabold text-emerald-800 text-xs">
+                        <p class="font-extrabold text-emerald-800 dark:text-emerald-400 text-xs">
                             🟢 Tavolo Libero
                         </p>
 
-                        <p class="text-[11px] text-emerald-700">
+                        <p class="text-[11px] text-emerald-700 dark:text-emerald-400">
                             Nessuna prenotazione attiva per questo tavolo in questa data.
                         </p>
 
@@ -2728,15 +2839,15 @@
 
                     <div class="space-y-3">
 
-                        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+                        <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
 
                             <div>
 
-                                <h4 class="font-extrabold text-stone-900 text-xs">
+                                <h4 class="font-extrabold text-stone-900 dark:text-stone-100 text-xs">
                                     ${booking.name}
                                 </h4>
 
-                                <p class="text-[11px] text-stone-500 font-medium">
+                                <p class="text-[11px] text-stone-500 dark:text-stone-400 font-medium">
                                     👥 ${booking.people} Persone • 🕒 ${booking.time}
                                 </p>
 
@@ -2764,7 +2875,7 @@
                                 class="btn-tap w-full py-2 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-sm ${
                                     isArrived
                                         ? 'bg-blue-600 text-white'
-                                        : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
                                 }">
                                 ${isArrived ? '✓ Cliente Arrivato' : '👉 Segnala Come Arrivato'}
                             </button>
@@ -2777,7 +2888,7 @@
                                         class="btn-tap py-2 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
                                             welcomeActive
                                                 ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
-                                                : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'
+                                                : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:bg-stone-100'
                                         }">
                                         ${welcomeActive ? '✓ Benvenuto' : '🍷 Benvenuto'}
                                     </button>
@@ -2786,7 +2897,7 @@
                                         class="btn-tap py-2 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
                                             orderedActive
                                                 ? 'bg-purple-600 border-purple-600 text-white shadow-md'
-                                                : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'
+                                                : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:bg-stone-100'
                                         }">
                                         ${orderedActive ? '✓ Comandato' : '📝 Comandato'}
                                     </button>
@@ -2879,12 +2990,12 @@
                     const row = document.createElement('div');
 
                     row.className =
-                        'flex justify-between items-center bg-stone-50 border border-stone-200 p-2.5 rounded-xl text-xs font-semibold';
+                        'flex justify-between items-center bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-2.5 rounded-xl text-xs font-semibold';
 
 
                     row.innerHTML = `
-                        <span class="text-stone-700">${zoneName}</span>
-                        <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-lg font-extrabold border border-emerald-200">
+                        <span class="text-stone-700 dark:text-stone-300">${zoneName}</span>
+                        <span class="bg-emerald-100 text-emerald-800 dark:text-emerald-400 px-2 py-0.5 rounded-lg font-extrabold border border-emerald-200">
                             ${peopleCount} Coperti
                         </span>
                     `;
@@ -2911,7 +3022,7 @@
 
 
             container.innerHTML = `
-                <div class="text-center py-6 text-stone-400 text-xs">
+                <div class="text-center py-6 text-stone-400 dark:text-stone-500 text-xs">
                     Caricamento storico in corso...
                 </div>
             `;
@@ -2973,7 +3084,7 @@
                 if (sortedDates.length === 0) {
 
                     container.innerHTML = `
-                        <div class="text-center py-6 text-stone-400 text-xs">
+                        <div class="text-center py-6 text-stone-400 dark:text-stone-500 text-xs">
                             Nessun dato nello storico.
                         </div>
                     `;
@@ -2995,7 +3106,7 @@
                     const card = document.createElement('div');
 
                     card.className =
-                        'bg-white border border-stone-200 p-3 rounded-2xl flex items-center justify-between cursor-pointer card-interactive hover:border-emerald-300 shadow-sm';
+                        'bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-3 rounded-2xl flex items-center justify-between cursor-pointer card-interactive hover:border-emerald-300 shadow-sm';
 
 
                     card.onclick = function() {
@@ -3013,17 +3124,17 @@
 
                         <div>
 
-                            <h4 class="font-extrabold text-stone-800 text-xs">
+                            <h4 class="font-extrabold text-stone-800 dark:text-stone-100 text-xs">
                                 📅 ${formattedDate}
                             </h4>
 
-                            <p class="text-[10px] text-stone-500 font-medium mt-0.5">
+                            <p class="text-[10px] text-stone-500 dark:text-stone-400 font-medium mt-0.5">
                                 ${info.tablesCount} Tavoli Prenotati (${info.arrivedCount} Arrivati)
                             </p>
 
                         </div>
 
-                        <span class="bg-emerald-50 border border-emerald-200 text-emerald-800 font-extrabold px-3 py-1 rounded-xl text-xs">
+                        <span class="bg-emerald-50 border border-emerald-200 text-emerald-800 dark:text-emerald-400 font-extrabold px-3 py-1 rounded-xl text-xs">
                             ${info.totalPeople} Coperti
                         </span>
 
@@ -3091,6 +3202,9 @@
 
                 const data = Object.values(timeSlots);
 
+                const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+                const tickColor = isDarkMode ? '#a8a29e' : '#57534e';
+
 
                 myChart = new Chart(ctx, {
 
@@ -3132,11 +3246,21 @@
 
                         scales: {
 
+                            x: {
+
+                                ticks: { color: tickColor },
+
+                                grid: { color: gridColor }
+
+                            },
+
                             y: {
 
                                 beginAtZero: true,
 
-                                ticks: { stepSize: 1 }
+                                ticks: { stepSize: 1, color: tickColor },
+
+                                grid: { color: gridColor }
 
                             }
 
@@ -3194,6 +3318,9 @@
 
                     const data = Object.values(daysMap);
 
+                    const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+                    const tickColor = isDarkMode ? '#a8a29e' : '#57534e';
+
 
                     myChart = new Chart(ctx, {
 
@@ -3241,11 +3368,21 @@
 
                             scales: {
 
+                                x: {
+
+                                    ticks: { color: tickColor },
+
+                                    grid: { color: gridColor }
+
+                                },
+
                                 y: {
 
                                     beginAtZero: true,
 
-                                    ticks: { stepSize: 5 }
+                                    ticks: { stepSize: 5, color: tickColor },
+
+                                    grid: { color: gridColor }
 
                                 }
 
