@@ -2167,14 +2167,14 @@
             }
 
 
-            // Ordina per orario di arrivo o orario prenotazione
+            // Ordina per orario di arrivo (più recente per primo, così l'ultimo che arriva appare in cima)
             arrivedBookings.sort((a, b) => {
 
                 if (a.arrivedAt && b.arrivedAt) {
-                    return a.arrivedAt.seconds - b.arrivedAt.seconds;
+                    return b.arrivedAt.seconds - a.arrivedAt.seconds;
                 }
 
-                return a.time.localeCompare(b.time);
+                return b.time.localeCompare(a.time);
 
             });
 
