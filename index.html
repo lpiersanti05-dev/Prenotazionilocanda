@@ -2522,9 +2522,23 @@
 
                         </div>
 
-                        <span class="font-bold text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
-                            🕒 ${b.time}
-                        </span>
+                        <div class="flex items-center gap-1">
+
+                            <span class="font-bold text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                                🕒 ${b.time}
+                            </span>
+
+                            <button onclick="openEditModal('${b.id}')"
+                                class="btn-tap px-2 py-1 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 rounded-lg font-bold text-[11px]">
+                                ✏️
+                            </button>
+
+                            <button onclick="deleteBooking('${b.id}')"
+                                class="btn-tap px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg font-bold text-[11px]">
+                                🗑️
+                            </button>
+
+                        </div>
 
                     </div>
 
