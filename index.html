@@ -1214,6 +1214,7 @@
 
         window.onload = function() {
             loadDateData();
+            initLogoListener();
         };
 
 
@@ -1239,8 +1240,32 @@
 
 
         // ---------------------------------------------------------
-        // CAMBIO LOGO (Foto da Galleria)
+        // LOGO CONDIVISO (Sync Cloud tra tutti i dispositivi)
         // ---------------------------------------------------------
+
+        function initLogoListener() {
+
+            db.collection("settings").doc("branding")
+                .onSnapshot((doc) => {
+
+                    if (doc.exists && doc.data().logo) {
+
+                        document.getElementById('logo-img').src =
+                            doc.data().logo;
+
+                    }
+
+                }, (error) => {
+
+                    console.error(
+                        "Errore Sync Logo:",
+                        error
+                    );
+
+                });
+
+        }
+
 
         function changeLogo(e) {
 
@@ -1260,7 +1285,62 @@
 
             reader.onload = function(ev) {
 
-                document.getElementById('logo-img').src = ev.target.result;
+                const img = new Image();
+
+                img.onload = function() {
+
+                    // Ridimensiona l'immagine per stare comodamente nel Cloud
+                    const maxSize = 300;
+
+                    let w = img.width;
+                    let h = img.height;
+
+                    if (w > h && w > maxSize) {
+                        h = Math.round(h * (maxSize / w));
+                        w = maxSize;
+                    } else if (h >= w && h > maxSize) {
+                        w = Math.round(w * (maxSize / h));
+                        h = maxSize;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    const compressedDataUrl =
+                        canvas.toDataURL('image/jpeg', 0.8);
+
+                    // Mostra subito in anteprima locale
+                    document.getElementById('logo-img').src =
+                        compressedDataUrl;
+
+                    // Salva sul Cloud così tutti i dispositivi vedono la stessa foto
+                    db.collection("settings").doc("branding")
+                        .set({
+                            logo: compressedDataUrl,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true })
+                        .catch((err) => {
+
+                            showError(
+                                "Impossibile sincronizzare il logo sul Cloud: " +
+                                err.message
+                            );
+
+                        });
+
+                };
+
+                img.onerror = function() {
+
+                    showError("Impossibile elaborare l'immagine selezionata.");
+
+                };
+
+                img.src = ev.target.result;
 
             };
 
