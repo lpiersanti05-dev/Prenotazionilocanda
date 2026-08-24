@@ -512,6 +512,24 @@
 
         </div>
     </div>
+    
+    <!-- Modal Dettaglio Servizio (Tavoli Arrivati) -->
+    <div id="servizio-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="glass-panel border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop">
+            
+            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
+                <h3 id="servizio-modal-title" class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
+                    Tavolo --
+                </h3>
+                <button onclick="closeServizioModal()" class="text-stone-400 dark:text-stone-500 font-bold text-xs hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
+                    ✕ Chiudi
+                </button>
+            </div>
+
+            <div id="servizio-modal-content" class="space-y-3"></div>
+
+        </div>
+    </div>
 
     <!-- HEADER -->
     <header class="glass-panel border-b border-stone-200/50 dark:border-stone-700/50 p-4 sticky top-0 z-20 shadow-sm transition-colors duration-300">
@@ -1145,7 +1163,7 @@
                             <g id="map-t12" onclick="clickMapTable('12')"><rect x="230" y="125" width="50" height="30" rx="5" class="table-box table-free"/><text x="255" y="144" text-anchor="middle" class="table-text-free">12</text></g>
                             <g id="map-t11" onclick="clickMapTable('11')"><rect x="230" y="175" width="50" height="30" rx="5" class="table-box table-free"/><text x="255" y="194" text-anchor="middle" class="table-text-free">11</text></g>
                             <g id="map-t10" onclick="clickMapTable('10')"><rect x="235" y="230" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="247" text-anchor="middle" class="table-text-free">10</text></g>
-                            <g id="map-t9" onclick="clickMapTable('9')"><rect x="235" y="265" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="282" text-anchor="middle" class="table-text-free">9</text></g>
+                            <g id="map-t9" onclick="clickMapTable('9')"><rect x="235" y="265" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="282" text-anchor="middle" class="table-text-free">10</text></g>
                             <g id="map-t8" onclick="clickMapTable('8')"><rect x="235" y="300" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="317" text-anchor="middle" class="table-text-free">8</text></g>
                             <g id="map-t7" onclick="clickMapTable('7')"><rect x="225" y="340" width="60" height="30" rx="5" class="table-box table-free"/><text x="255" y="359" text-anchor="middle" class="table-text-free">7</text></g>
                             <g id="map-t6" onclick="clickMapTable('6')"><rect x="235" y="390" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="407" text-anchor="middle" class="table-text-free">6</text></g>
@@ -2364,9 +2382,15 @@
 
             } else if (stateType === 'ordered') {
 
+                const nextOrdered = !booking.ordered;
                 updateData = {
-                    ordered: !booking.ordered
+                    ordered: nextOrdered
                 };
+                
+                // Se la comanda è presa, togli il pronto per ordinare (auto-drop aura negativa)
+                if (nextOrdered) {
+                    updateData.readyToOrder = false;
+                }
 
             }
 
@@ -2789,157 +2813,88 @@
         // ---------------------------------------------------------
 
         function renderArrivedList() {
-
-            const container =
-                document.getElementById('arrived-list');
-
+            const container = document.getElementById('arrived-list');
             container.innerHTML = '';
-
 
             const arrivedBookings = bookings.filter(b => b.arrived);
 
-
             if (arrivedBookings.length === 0) {
-
                 container.innerHTML = `
                     <div class="glass-panel border border-dashed border-stone-300 dark:border-stone-600 p-10 text-center rounded-2xl text-stone-400 dark:text-stone-500 text-xs">
                         Nessun tavolo arrivato al momento.
                     </div>
                 `;
-
                 return;
-
             }
 
-
-            // Ordinamento rigoroso: Priorità sempre in cima (più recenti in cima tra le priorità), poi gli altri
+            // Ordinamento basato su Aura e Priorità
             arrivedBookings.sort((a, b) => {
-                if (a.priority && !b.priority) return -1;
-                if (!a.priority && b.priority) return 1;
-                if (a.priority && b.priority) {
-                    const timeA = a.priorityAt && a.priorityAt.seconds ? a.priorityAt.seconds : 0;
-                    const timeB = b.priorityAt && b.priorityAt.seconds ? b.priorityAt.seconds : 0;
-                    if (timeA !== timeB) return timeB - timeA;
-                }
+                // 1. Priorità o Pronto per ordinare (Top tier)
+                const aUrgent = a.priority || a.readyToOrder;
+                const bUrgent = b.priority || b.readyToOrder;
+                if (aUrgent && !bUrgent) return -1;
+                if (!aUrgent && bUrgent) return 1;
+
+                // 2. Senza Benvenuto
+                if (!a.welcome && b.welcome) return -1;
+                if (a.welcome && !b.welcome) return 1;
+
+                // 3. Con Benvenuto, ma Senza Comanda
+                if (a.welcome && !a.ordered && b.ordered) return -1;
+                if (b.welcome && !b.ordered && a.ordered) return 1;
+
+                // 4. Ordine di arrivo (ultimo arrivato in cima)
                 if (a.arrivedAt && b.arrivedAt) {
                     return b.arrivedAt.seconds - a.arrivedAt.seconds;
                 }
                 return b.time.localeCompare(a.time);
             });
 
+            // Creiamo la griglia con i quadratoni
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-4 gap-2 text-center pt-1';
 
             arrivedBookings.forEach(b => {
+                let bgColor, textColor, borderColor;
 
-                const isPriority = b.priority;
-                const isReady = b.readyToOrder;
+                // Logica Colori
+                if (b.priority || b.readyToOrder) {
+                    bgColor = 'bg-amber-100 dark:bg-amber-900';
+                    textColor = 'text-amber-700 dark:text-amber-400';
+                    borderColor = 'border-amber-400';
+                } else if (!b.welcome) {
+                    bgColor = 'bg-rose-50 dark:bg-rose-950';
+                    textColor = 'text-rose-700 dark:text-rose-400';
+                    borderColor = 'border-rose-300';
+                } else if (b.welcome && !b.ordered) {
+                    bgColor = 'bg-blue-50 dark:bg-blue-950';
+                    textColor = 'text-blue-700 dark:text-blue-400';
+                    borderColor = 'border-blue-300';
+                } else { // Benvenuto + Comanda presa
+                    bgColor = 'bg-emerald-50 dark:bg-emerald-950';
+                    textColor = 'text-emerald-700 dark:text-emerald-400';
+                    borderColor = 'border-emerald-300';
+                }
 
-                const cardBg = isPriority 
-                    ? 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600 shadow-md shadow-amber-500/10' 
-                    : 'glass-panel border-stone-200 dark:border-stone-700';
+                const square = document.createElement('div');
+                square.className = `btn-tap cursor-pointer border ${borderColor} ${bgColor} p-3 rounded-xl hover:shadow-md transition-colors animate-fade-in relative flex flex-col justify-center items-center`;
+                square.onclick = () => openServizioModal(b.id);
 
-                const card = document.createElement('div');
+                let icons = '';
+                if (b.priority) icons += '⭐';
+                if (b.readyToOrder) icons += '🛎️';
 
-                card.className =
-                    `${cardBg} p-4 rounded-2xl border shadow-sm hover:shadow-md space-y-3 card-interactive animate-fade-in transition-all`;
-
-
-                const welcomeActive = b.welcome;
-
-                const orderedActive = b.ordered;
-
-
-                card.innerHTML = `
-
-                    <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2.5">
-
-                        <div class="flex items-center gap-3">
-
-                            <span class="${isPriority ? 'bg-amber-600' : 'bg-blue-600'} text-white font-black px-3 py-1.5 rounded-xl text-sm shadow-sm">
-                                T${b.table} ${isPriority ? '⭐' : ''}
-                            </span>
-
-                            <div>
-
-                                <div class="flex items-center gap-2">
-                                    <h4 class="font-extrabold text-sm text-stone-900 dark:text-stone-100">
-                                        ${b.name}
-                                    </h4>
-                                    ${isPriority ? '<span class="text-[10px] bg-amber-600 text-white px-1.5 py-0.5 rounded font-black uppercase">Priorità</span>' : ''}
-                                    ${isReady ? '<span class="text-[10px] bg-purple-600 text-white px-1.5 py-0.5 rounded font-black uppercase animate-pulse">🛎️ Pronto Ordinare</span>' : ''}
-                                </div>
-
-                                <p class="text-[11px] text-stone-400 dark:text-stone-500 font-medium mt-0.5">
-                                    👥 ${b.people} Persone • ${getTableZone(b.table)}
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                        <button onclick="toggleArrived('${b.id}')"
-                            class="btn-tap text-[10px] bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 px-2.5 py-1.5 rounded-lg font-bold hover:bg-rose-100 dark:hover:bg-rose-900 transition-colors">
-                            Annulla
-                        </button>
-
-                    </div>
-
-                    ${b.notes ? `
-                        <div class="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-2.5 rounded-xl text-[11px] text-amber-900 dark:text-amber-400 font-medium">
-                            📝 ${b.notes}
-                        </div>
-                    ` : ''}
-
-                    <!-- Nuovi tasti Priorità e Pronto per Ordinare -->
-                    <div class="grid grid-cols-2 gap-2 pt-1">
-                        <button onclick="togglePriority('${b.id}')"
-                            class="btn-tap py-2.5 rounded-xl font-extrabold text-[11px] uppercase tracking-wider border transition-all ${
-                                isPriority
-                                    ? 'bg-amber-500 border-amber-600 text-white shadow-md'
-                                    : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950'
-                            }">
-                            ${isPriority ? '⭐ Priorità Attiva' : '☆ Metti Priorità'}
-                        </button>
-
-                        <button onclick="toggleReadyToOrder('${b.id}')"
-                            class="btn-tap py-2.5 rounded-xl font-extrabold text-[11px] uppercase tracking-wider border transition-all ${
-                                isReady
-                                    ? 'bg-purple-600 border-purple-700 text-white shadow-md animate-pulse'
-                                    : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950'
-                            }">
-                            ${isReady ? '🛎️ Pronto Ordinare!' : '🛎️ Avvisa Pronto'}
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 pt-1">
-
-                        <button onclick="setServiceState('${b.id}', 'welcome')"
-                            class="btn-tap py-3 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
-                                welcomeActive
-                                    ? 'bg-emerald-600 dark:bg-emerald-700 border-emerald-600 dark:border-emerald-700 text-white shadow-md'
-                                    : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
-                            }">
-                            ${welcomeActive ? '✓ Benvenuto' : '🍷 Benvenuto'}
-                        </button>
-
-                        <button onclick="setServiceState('${b.id}', 'ordered')"
-                            class="btn-tap py-3 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
-                                orderedActive
-                                    ? 'bg-purple-600 dark:bg-purple-700 border-purple-600 dark:border-purple-700 text-white shadow-md'
-                                    : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
-                            }">
-                            ${orderedActive ? '✓ Comandato' : '📝 Comandato'}
-                        </button>
-
-                    </div>
-
+                square.innerHTML = `
+                    ${icons ? `<div class="absolute -top-2 -right-2 text-[10px] bg-white dark:bg-stone-800 rounded-full shadow-sm px-1.5 py-0.5 border border-stone-200 dark:border-stone-600">${icons}</div>` : ''}
+                    <span class="text-2xl font-black ${textColor}">${b.table}</span>
+                    <span class="text-[9px] ${textColor} block font-bold mt-1 truncate w-full px-1">${b.name}</span>
                 `;
-
-                container.appendChild(card);
-
+                
+                grid.appendChild(square);
             });
 
+            container.appendChild(grid);
         }
-
 
         // ---------------------------------------------------------
         // RENDER TAVOLI LIBERI (WALK-IN)
@@ -3274,13 +3229,21 @@
 
                         </div>
 
-                        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                            b.arrived
-                                ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-700'
-                                : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-700'
-                        }">
-                            ${b.arrived ? 'Arrivato' : 'In Arrivo'}
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                                b.arrived
+                                    ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-700'
+                                    : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-700'
+                            }">
+                                ${b.arrived ? 'Arrivato' : 'In Arrivo'}
+                            </span>
+                            
+                            ${!b.arrived ? `
+                                <button onclick="deleteBooking('${b.id}'); closeStatModal();" class="btn-tap px-2 py-1 bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 rounded-lg font-bold text-[11px] transition-colors">
+                                    🗑️
+                                </button>
+                            ` : ''}
+                        </div>
 
                     `;
 
@@ -4056,6 +4019,75 @@
 
             }
 
+        }
+        
+        // ---------------------------------------------------------
+        // FUNZIONI MODAL SERVIZIO
+        // ---------------------------------------------------------
+
+        function openServizioModal(id) {
+            const b = bookings.find(item => item.id === id);
+            if (!b) return;
+
+            document.getElementById('servizio-modal-title').innerText = `Tavolo ${b.table} - ${b.name}`;
+
+            const content = document.getElementById('servizio-modal-content');
+            
+            const isPriority = b.priority;
+            const isReady = b.readyToOrder;
+            const welcomeActive = b.welcome;
+            const orderedActive = b.ordered;
+
+            content.innerHTML = `
+                <div class="text-xs text-stone-600 dark:text-stone-400 font-medium mb-3 bg-stone-50 dark:bg-stone-900 p-2 rounded-lg border border-stone-200 dark:border-stone-700">
+                    👥 ${b.people} Persone • ${getTableZone(b.table)} <br>
+                    🕒 Orario di prenotazione: ${b.time}
+                </div>
+                
+                ${b.notes ? `
+                    <div class="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-700 p-2.5 rounded-xl text-[11px] text-amber-900 dark:text-amber-400 font-medium mb-3">
+                        📝 ${b.notes}
+                    </div>
+                ` : ''}
+
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button onclick="togglePriority('${b.id}'); setTimeout(() => openServizioModal('${b.id}'), 150);"
+                        class="btn-tap py-2.5 rounded-xl font-extrabold text-[11px] uppercase tracking-wider border transition-all ${
+                            isPriority ? 'bg-amber-500 border-amber-600 text-white shadow-md' : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-amber-700 dark:text-amber-400'
+                        }">
+                        ${isPriority ? '⭐ Priorità' : '☆ Priorità'}
+                    </button>
+
+                    <button onclick="toggleReadyToOrder('${b.id}'); setTimeout(() => openServizioModal('${b.id}'), 150);"
+                        class="btn-tap py-2.5 rounded-xl font-extrabold text-[11px] uppercase tracking-wider border transition-all ${
+                            isReady ? 'bg-purple-600 border-purple-700 text-white shadow-md animate-pulse' : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-purple-700 dark:text-purple-400'
+                        }">
+                        ${isReady ? '🛎️ Pronto!' : '🛎️ Avvisa'}
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="setServiceState('${b.id}', 'welcome'); setTimeout(() => { openServizioModal('${b.id}'); }, 150);"
+                        class="btn-tap py-3 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
+                            welcomeActive ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400'
+                        }">
+                        ${welcomeActive ? '✓ Benvenuto' : '🍷 Benvenuto'}
+                    </button>
+
+                    <button onclick="setServiceState('${b.id}', 'ordered'); setTimeout(() => { openServizioModal('${b.id}'); }, 150);"
+                        class="btn-tap py-3 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all ${
+                            orderedActive ? 'bg-purple-600 border-purple-700 text-white shadow-md' : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400'
+                        }">
+                        ${orderedActive ? '✓ Comandato' : '📝 Comandato'}
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('servizio-modal').classList.remove('hidden');
+        }
+
+        function closeServizioModal() {
+            document.getElementById('servizio-modal').classList.add('hidden');
         }
 
     </script>
