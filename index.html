@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Locanda">
+<!-- 7. SPLASH SCREEN iOS -->
+<link rel="apple-touch-startup-image" href="image.png">
 <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Locanda%20del%20Convento%20-%20Prenotazioni%22,%22short_name%22:%22Locanda%22,%22start_url%22:%22.%22,%22display%22:%22fullscreen%22,%22orientation%22:%22portrait%22,%22theme_color%22:%22%2310b981%22,%22background_color%22:%22%23faf8f3%22,%22icons%22:[{%22src%22:%22image.png%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22,%22purpose%22:%22any%22}]}">
 <link rel="icon" type="image/png" href="image.png">
 <link rel="apple-touch-icon" href="image.png">
@@ -32,6 +34,8 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
             scrollbar-width: thin;
             scrollbar-color: rgba(16, 185, 129, 0.3) transparent;
+            /* 1. STILE APPLE LIQUID GLASS: Sfumatura pulita di sfondo */
+            background-attachment: fixed;
         }
         
         body::-webkit-scrollbar {
@@ -53,6 +57,21 @@
 
         body, header, main, .card-interactive, input, select, button, textarea {
             transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* 1. LIQUID GLASS EFFECT PANNELLI */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.05);
+            border-radius: 1.5rem;
+        }
+        .dark .glass-panel {
+            background: rgba(28, 25, 23, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.2);
         }
 
         /* Colori tavoli mappa in tema scuro */
@@ -94,9 +113,15 @@
             to { opacity: 1; transform: translateX(0); }
         }
 
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
         .animate-fade-in { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-pop { animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+        .animate-toast { animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
         .btn-tap { 
             transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, box-shadow 0.2s ease;
@@ -180,11 +205,14 @@
     </style>
 </head>
 
-<body class="bg-gradient-to-br from-stone-50 to-stone-100 dark:from-stone-950 dark:to-stone-900 text-stone-800 dark:text-stone-100 min-h-screen pb-12 select-none transition-colors duration-300">
+<body class="bg-gradient-to-br from-stone-100 via-emerald-50/30 to-stone-200 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950 text-stone-800 dark:text-stone-100 min-h-screen pb-12 select-none transition-colors duration-300">
+
+    <!-- 3. NOTIFICHE A SCOMPARSA (TOAST iOS) -->
+    <div id="toast-container" class="fixed bottom-6 left-0 right-0 z-50 flex flex-col items-center pointer-events-none px-4 space-y-2"></div>
 
     <!-- Modal Avviso Errore -->
     <div id="error-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-white dark:bg-stone-800 border-2 border-red-500 text-stone-800 dark:text-stone-100 p-6 rounded-3xl max-w-xs w-full text-center space-y-3 shadow-2xl animate-pop">
+        <div class="glass-panel border-2 border-red-500 text-stone-800 dark:text-stone-100 p-6 rounded-3xl max-w-xs w-full text-center space-y-3 shadow-2xl animate-pop">
             <div class="text-4xl animate-bounce">⚠️</div>
             <h3 class="font-extrabold text-base text-red-600 dark:text-red-400">Attenzione!</h3>
             <p id="error-message" class="text-xs text-stone-600 dark:text-stone-400 leading-relaxed font-medium">Errore generico</p>
@@ -196,7 +224,7 @@
 
     <!-- Modal Selezione Allergeni (Servizio / Benvenuto) -->
     <div id="allergens-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
+        <div class="glass-panel border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
                 <h3 class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
                     🍷 Benvenuto - Allergeni
@@ -277,7 +305,7 @@
 
     <!-- Modal Modifica Prenotazione -->
     <div id="edit-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
+        <div class="glass-panel border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[90vh] overflow-y-auto">
 
             <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
                 <h3 class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
@@ -402,6 +430,13 @@
                     </label>
                     <input type="text" id="edit-notes"
                         class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
+                    <!-- 4. PULSANTI NOTE RAPIDE (Modifica) -->
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        <button type="button" onclick="appendQuickNote('edit-notes', '🎂 Compleanno')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🎂 Compleanno</button>
+                        <button type="button" onclick="appendQuickNote('edit-notes', '👶 Seggiolone')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">👶 Seggiolone</button>
+                        <button type="button" onclick="appendQuickNote('edit-notes', '🐶 Cane')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🐶 Cane</button>
+                        <button type="button" onclick="appendQuickNote('edit-notes', '🌾 Celiaco')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🌾 Celiaco</button>
+                    </div>
                 </div>
 
                 <div class="flex gap-2 pt-3">
@@ -424,7 +459,7 @@
 
     <!-- Modal Dettaglio Tavolo Mappa -->
     <div id="map-info-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-xs w-full p-5 space-y-3 shadow-2xl animate-pop">
+        <div class="glass-panel border border-stone-200 dark:border-stone-700 rounded-3xl max-w-xs w-full p-5 space-y-3 shadow-2xl animate-pop">
 
             <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
 
@@ -453,9 +488,9 @@
 
     <!-- Modal Lista Statistiche (Coperti / Arrivati / Prenotati / In Arrivo) -->
     <div id="stat-list-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-3 shadow-2xl animate-pop max-h-[85vh] overflow-y-auto">
+        <div class="glass-panel border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-3 shadow-2xl animate-pop max-h-[85vh] overflow-y-auto">
 
-            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2 sticky top-0 bg-white dark:bg-stone-800">
+            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2 sticky top-0 bg-white/90 dark:bg-stone-800/90 backdrop-blur-md">
                 <h3 id="stat-modal-title" class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
                     Lista
                 </h3>
@@ -471,7 +506,7 @@
     </div>
 
     <!-- HEADER -->
-    <header class="bg-white/80 dark:bg-stone-900/80 backdrop-blur-xl border-b border-stone-200 dark:border-stone-700 p-4 sticky top-0 z-20 shadow-sm transition-colors duration-300">
+    <header class="glass-panel border-b border-stone-200/50 dark:border-stone-700/50 p-4 sticky top-0 z-20 shadow-sm transition-colors duration-300">
 
         <div class="max-w-md mx-auto flex flex-col gap-4">
 
@@ -515,7 +550,7 @@
             </div>
 
             <!-- NAVIGAZIONE -->
-            <div class="flex bg-stone-100 dark:bg-stone-800 p-1.5 rounded-xl border border-stone-200 dark:border-stone-700 text-xs font-semibold gap-1 overflow-x-auto shadow-inner">
+            <div class="flex bg-stone-100/80 dark:bg-stone-800/80 backdrop-blur-md p-1.5 rounded-xl border border-stone-200 dark:border-stone-700 text-xs font-semibold gap-1 overflow-x-auto shadow-inner">
 
                 <button id="btn-tab-tavoli"
                     onclick="switchTab('tavoli')"
@@ -568,7 +603,7 @@
         <section id="tab-tavoli" class="space-y-6 animate-fade-in">
 
             <!-- GIORNO ATTIVO -->
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md card-interactive transition-all">
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md card-interactive transition-all">
 
                 <label class="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
                     📅 Giorno Attivo:
@@ -582,7 +617,7 @@
             </div>
 
             <!-- CONTATORE SINTETICO -->
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl space-y-3 shadow-sm hover:shadow-md card-interactive transition-all">
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl space-y-3 shadow-sm hover:shadow-md card-interactive transition-all">
 
                 <div class="flex justify-between items-center border-b border-stone-100 dark:border-stone-700 pb-2">
 
@@ -626,7 +661,7 @@
             </div>
 
             <!-- WALK-IN -->
-            <div class="bg-white dark:bg-stone-800 border border-amber-200 dark:border-amber-800 p-5 rounded-2xl space-y-4 shadow-sm hover:shadow-md card-interactive transition-all relative overflow-hidden">
+            <div class="glass-panel border border-amber-200 dark:border-amber-800 p-5 rounded-2xl space-y-4 shadow-sm hover:shadow-md card-interactive transition-all relative overflow-hidden">
                 <!-- Sottile effetto background decorativo per i walk-in -->
                 <div class="absolute top-0 right-0 w-32 h-32 bg-amber-100/50 dark:bg-amber-900/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
@@ -733,6 +768,13 @@
                             id="walkin-notes"
                             placeholder="es. Intollerante al lattosio"
                             class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all">
+                        <!-- 4. PULSANTI NOTE RAPIDE (Walk-in) -->
+                        <div class="flex flex-wrap gap-1.5 mt-2">
+                            <button type="button" onclick="appendQuickNote('walkin-notes', '🎂 Compleanno')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🎂 Compleanno</button>
+                            <button type="button" onclick="appendQuickNote('walkin-notes', '👶 Seggiolone')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">👶 Seggiolone</button>
+                            <button type="button" onclick="appendQuickNote('walkin-notes', '🐶 Cane')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🐶 Cane</button>
+                            <button type="button" onclick="appendQuickNote('walkin-notes', '🌾 Celiaco')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🌾 Celiaco</button>
+                        </div>
                     </div>
 
                     <button type="submit"
@@ -744,7 +786,7 @@
             </div>
 
             <!-- NUOVA PRENOTAZIONE -->
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-5 rounded-2xl space-y-4 shadow-sm hover:shadow-md card-interactive transition-all relative overflow-hidden">
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-5 rounded-2xl space-y-4 shadow-sm hover:shadow-md card-interactive transition-all relative overflow-hidden">
                 <!-- Sottile effetto background decorativo per prenotazione cloud -->
                 <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-100/50 dark:bg-emerald-900/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
@@ -889,6 +931,13 @@
                             id="input-notes"
                             placeholder="es. Celiaco, compleanno"
                             class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
+                        <!-- 4. PULSANTI NOTE RAPIDE (Nuova Prenotazione) -->
+                        <div class="flex flex-wrap gap-1.5 mt-2">
+                            <button type="button" onclick="appendQuickNote('input-notes', '🎂 Compleanno')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🎂 Compleanno</button>
+                            <button type="button" onclick="appendQuickNote('input-notes', '👶 Seggiolone')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">👶 Seggiolone</button>
+                            <button type="button" onclick="appendQuickNote('input-notes', '🐶 Cane')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🐶 Cane</button>
+                            <button type="button" onclick="appendQuickNote('input-notes', '🌾 Celiaco')" class="btn-tap bg-stone-100 dark:bg-stone-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-[11px] px-2 py-1 rounded-lg font-medium">🌾 Celiaco</button>
+                        </div>
 
                     </div>
 
@@ -921,7 +970,7 @@
         <section id="tab-servizio" class="hidden space-y-4 animate-fade-in">
 
             <!-- HEADER SERVIZIO -->
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all">
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all">
 
                 <div class="flex items-center justify-between">
 
@@ -972,7 +1021,7 @@
 
         <section id="tab-cerca" class="hidden space-y-4 animate-fade-in">
 
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
 
                 <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
                     🔍 Ricerca Rapida Tavolo / Nome
@@ -1013,7 +1062,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
                 <!-- MAPPA PRINCIPALE -->
-                <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
+                <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
 
                     <div class="flex justify-between items-center">
 
@@ -1106,7 +1155,7 @@
                 </div>
 
                 <!-- MAPPA ZONA NUOVA -->
-                <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
+                <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
 
                     <div class="flex justify-between items-center">
 
@@ -1178,7 +1227,7 @@
 
         <section id="tab-giorni" class="hidden space-y-4 animate-fade-in">
 
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
 
                 <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2">
 
@@ -1204,7 +1253,20 @@
 
         <section id="tab-grafici" class="hidden space-y-4 animate-fade-in">
 
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
+            <!-- 5. PULSANTE ESPORTAZIONE EXCEL / CSV -->
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-between">
+                <div>
+                    <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
+                        📥 Download Dati
+                    </h2>
+                    <p class="text-[11px] text-stone-500 dark:text-stone-400">Esporta le prenotazioni del giorno attivo</p>
+                </div>
+                <button onclick="exportToCSV()" class="btn-tap bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase shadow-md flex items-center gap-2">
+                    <span>📊</span> Esporta Dati Serata (Excel/CSV)
+                </button>
+            </div>
+
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-3">
 
                 <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100 border-b border-stone-100 dark:border-stone-700 pb-2">
                     📍 Riepilogo Prenotazioni per Area (Giorno Attivo)
@@ -1214,7 +1276,7 @@
 
             </div>
 
-            <div class="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-4">
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-4">
 
                 <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-3">
 
@@ -1263,6 +1325,111 @@
     <script>
 
         // ---------------------------------------------------------
+        // 2. FEEDBACK TATTILE (Vibrazione)
+        // ---------------------------------------------------------
+        function triggerHaptic(duration = 15) {
+            if (window.navigator && window.navigator.vibrate) {
+                try {
+                    window.navigator.vibrate(duration);
+                } catch(e) {}
+            }
+        }
+
+        // Intercetta i click su tutti i pulsanti e tab per il feedback tattile automatico
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('button, .btn-tap');
+            if (btn) {
+                triggerHaptic(12);
+            }
+        });
+
+        // ---------------------------------------------------------
+        // 3. NOTIFICHE A SCOMPARSA (Toast Style iOS)
+        // ---------------------------------------------------------
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-3 rounded-2xl text-xs font-bold shadow-xl animate-toast flex items-center gap-2 max-w-sm text-center border backdrop-blur-xl ${
+                type === 'success' 
+                    ? 'bg-emerald-600/90 text-white border-emerald-500' 
+                    : type === 'error'
+                    ? 'bg-rose-600/90 text-white border-rose-500'
+                    : 'bg-stone-900/90 dark:bg-stone-100/90 text-white dark:text-stone-900 border-stone-700'
+            }`;
+
+            const icon = type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️';
+            toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.transition = 'all 0.3s ease-out';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px) scale(0.9)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ---------------------------------------------------------
+        // 4. FUNZIONE NOTE RAPIDE
+        // ---------------------------------------------------------
+        function appendQuickNote(inputId, noteText) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            
+            let val = input.value.trim();
+            if (val) {
+                if (!val.includes(noteText)) {
+                    input.value = val + " | " + noteText;
+                }
+            } else {
+                input.value = noteText;
+            }
+            triggerHaptic(20);
+        }
+
+        // ---------------------------------------------------------
+        // 5. ESPORTAZIONE EXCEL / CSV
+        // ---------------------------------------------------------
+        function exportToCSV() {
+            if (!bookings || bookings.length === 0) {
+                showError("Nessuna prenotazione da esportare per la data odierna.");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,ID;Data;Nome;Tavolo;Tavoli Uniti;Persone;Seggioloni;Orario;Note;Arrivato;Walk-in\n";
+
+            bookings.forEach(b => {
+                const row = [
+                    b.id || "",
+                    b.date || "",
+                    `"${(b.name || "").replace(/"/g, '""')}"`,
+                    b.table || "",
+                    `"${(b.joined || []).join(', ')}"`,
+                    b.people || 0,
+                    b.chairs || 0,
+                    b.time || "",
+                    `"${(b.notes || "").replace(/"/g, '""')}"`,
+                    b.arrived ? "Sì" : "No",
+                    b.isWalkin ? "Sì" : "No"
+                ];
+                csvContent += row.join(";") + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `prenotazioni_locanda_${document.getElementById('current-date').value}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("File CSV esportato con successo!");
+        }
+
+        // ---------------------------------------------------------
         // RILEVAMENTO AUTOMATICO TEMA SCURO DEL DISPOSITIVO
         // ---------------------------------------------------------
 
@@ -1307,6 +1474,16 @@
         firebase.initializeApp(firebaseConfig);
 
         const db = firebase.firestore();
+
+        // 6. SUPPORT OFFLINE (Firebase Persistence)
+        db.enablePersistence({ synchronizeTabs: true })
+          .catch((err) => {
+              if (err.code == 'failed-precondition') {
+                  console.warn("Persistenza offline non abilitata: più tab aperti.");
+              } else if (err.code == 'unimplemented') {
+                  console.warn("Il browser non supporta la persistenza offline.");
+              }
+          });
 
 
         // ---------------------------------------------------------
@@ -1452,6 +1629,7 @@
                             logo: compressedDataUrl,
                             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                         }, { merge: true })
+                        .then(() => showToast("Logo aggiornato con successo!"))
                         .catch((err) => {
 
                             showError(
@@ -1802,6 +1980,8 @@
                 document.getElementById('input-time').value =
                     "20:30";
 
+                showToast("Prenotazione salvata con successo!");
+
             } catch (err) {
 
                 showError(
@@ -1909,6 +2089,8 @@
 
                 document.getElementById('walkin-chairs').value = '0';
 
+                showToast("Walk-in registrato con successo!");
+
             } catch (err) {
 
                 showError(
@@ -1952,6 +2134,8 @@
                             ordered: false
 
                         });
+
+                    showToast(nextArrivedState ? "Tavolo segnato come arrivato!" : "Stato arrivo annullato.");
 
                 } catch (err) {
 
@@ -2038,6 +2222,7 @@
                 });
 
                 closeAllergensModal();
+                showToast("Benvenuto e intolleranze registrate!");
 
                 if (tableNumStr) {
                     setTimeout(() => {
@@ -2086,6 +2271,8 @@
                 await db.collection("bookings")
                     .doc(id)
                     .update(updateData);
+
+                showToast("Stato servizio aggiornato!");
 
             } catch (err) {
 
@@ -2244,6 +2431,7 @@
 
 
                 closeEditModal();
+                showToast("Modifiche salvate con successo!");
 
             } catch (err) {
 
@@ -2278,6 +2466,8 @@
                         .doc(id)
                         .delete();
 
+                    showToast("Prenotazione eliminata.");
+
                 } catch (err) {
 
                     showError(
@@ -2307,7 +2497,7 @@
             if (bookings.length === 0) {
 
                 listContainer.innerHTML = `
-                    <div class="bg-white dark:bg-stone-800 border border-dashed border-stone-300 dark:border-stone-600 p-10 text-center rounded-2xl text-stone-400 dark:text-stone-500 text-xs">
+                    <div class="glass-panel border border-dashed border-stone-300 dark:border-stone-600 p-10 text-center rounded-2xl text-stone-400 dark:text-stone-500 text-xs">
                         Nessuna prenotazione per questo giorno.
                     </div>
                 `;
@@ -2329,7 +2519,7 @@
 
                 const zoneStr = getTableZone(b.table);
 
-                const cardBg = isArrived ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700';
+                const cardBg = isArrived ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' : 'glass-panel border-stone-200 dark:border-stone-700';
 
 
                 let joinedBadges = '';
@@ -2477,7 +2667,7 @@
             if (arrivedBookings.length === 0) {
 
                 container.innerHTML = `
-                    <div class="bg-white dark:bg-stone-800 border border-dashed border-stone-300 dark:border-stone-600 p-10 text-center rounded-2xl text-stone-400 dark:text-stone-500 text-xs">
+                    <div class="glass-panel border border-dashed border-stone-300 dark:border-stone-600 p-10 text-center rounded-2xl text-stone-400 dark:text-stone-500 text-xs">
                         Nessun tavolo arrivato al momento.
                     </div>
                 `;
@@ -2504,7 +2694,7 @@
                 const card = document.createElement('div');
 
                 card.className =
-                    'bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md space-y-3 card-interactive animate-fade-in transition-all';
+                    'glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md space-y-3 card-interactive animate-fade-in transition-all';
 
 
                 const welcomeActive = b.welcome;
@@ -2695,7 +2885,7 @@
             if (results.length === 0) {
 
                 container.innerHTML = `
-                    <div class="text-center py-10 text-rose-500 dark:text-rose-400 font-semibold text-xs bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-sm">
+                    <div class="text-center py-10 text-rose-500 dark:text-rose-400 font-semibold text-xs glass-panel border border-stone-200 dark:border-stone-700 rounded-2xl shadow-sm">
                         Nessuna prenotazione trovata per "${query}".
                     </div>
                 `;
@@ -2712,7 +2902,7 @@
                 const card = document.createElement('div');
 
                 card.className =
-                    'bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md space-y-3 card-interactive animate-fade-in transition-all';
+                    'glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md space-y-3 card-interactive animate-fade-in transition-all';
 
 
                 card.innerHTML = `
@@ -3329,7 +3519,7 @@
                     const card = document.createElement('div');
 
                     card.className =
-                        'bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-2xl flex items-center justify-between cursor-pointer card-interactive hover:border-emerald-300 dark:hover:border-emerald-700 shadow-sm transition-all';
+                        'glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl flex items-center justify-between cursor-pointer card-interactive hover:border-emerald-300 dark:hover:border-emerald-700 shadow-sm transition-all';
 
 
                     card.onclick = function() {
@@ -3370,7 +3560,7 @@
             } catch (err) {
 
                 container.innerHTML = `
-                    <div class="text-center py-10 text-rose-500 dark:text-rose-400 text-xs bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl">
+                    <div class="text-center py-10 text-rose-500 dark:text-rose-400 text-xs glass-panel border border-stone-200 dark:border-stone-700 rounded-2xl">
                         Errore caricamento storico: ${err.message}
                     </div>
                 `;
