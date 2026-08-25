@@ -356,7 +356,7 @@
                             Persone
                         </label>
 
-                        <select id="edit-people" required
+                        <select id="edit-people" required onchange="toggleCustomPeopleInput('edit')"
                             class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all cursor-pointer">
 
                             <option value="1">1 Persona</option>
@@ -379,9 +379,12 @@
                             <option value="18">18 Persone</option>
                             <option value="19">19 Persone</option>
                             <option value="20">20 Persone</option>
-                            <option value="21">20+ Tavolata</option>
+                            <option value="custom">✏️ Inserisci numero personalizzato...</option>
 
                         </select>
+
+                        <input type="number" id="edit-people-custom" min="1" placeholder="Scrivi n° coperti..."
+                            class="hidden w-full mt-2 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
                     </div>
 
                     <div>
@@ -741,7 +744,7 @@
                                 👥 Persone
                             </label>
 
-                            <select id="walkin-people" required
+                            <select id="walkin-people" required onchange="toggleCustomPeopleInput('walkin')"
                                 class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all cursor-pointer">
                                 <option value="1">1 Persona</option>
                                 <option value="2" selected>2 Persone</option>
@@ -763,8 +766,11 @@
                                 <option value="18">18 Persone</option>
                                 <option value="19">19 Persone</option>
                                 <option value="20">20 Persone</option>
-                                <option value="21">20+ Tavolata</option>
+                                <option value="custom">✏️ Inserisci numero personalizzato...</option>
                             </select>
+
+                            <input type="number" id="walkin-people-custom" min="1" placeholder="Scrivi n° coperti..."
+                                class="hidden w-full mt-2 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all">
                         </div>
 
                         <div>
@@ -884,7 +890,7 @@
                                 👥 Persone Prenotate
                             </label>
 
-                            <select id="input-people" required
+                            <select id="input-people" required onchange="toggleCustomPeopleInput('input')"
                                 class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all cursor-pointer">
 
                                 <option value="1">1 Persona</option>
@@ -907,9 +913,12 @@
                                 <option value="18">18 Persone</option>
                                 <option value="19">19 Persone</option>
                                 <option value="20">20 Persone</option>
-                                <option value="21">20+ Tavolata</option>
+                                <option value="custom">✏️ Inserisci numero personalizzato...</option>
 
                             </select>
+
+                            <input type="number" id="input-people-custom" min="1" placeholder="Scrivi n° coperti..."
+                                class="hidden w-full mt-2 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
                         </div>
 
                         <div>
@@ -1368,6 +1377,35 @@
     <!-- ========================================================= -->
 
     <script>
+
+        // ---------------------------------------------------------
+        // GESTIONE NUMERO PERSONE PERSONALIZZATO
+        // ---------------------------------------------------------
+        function toggleCustomPeopleInput(prefix) {
+            const selectEl = document.getElementById(`${prefix}-people`);
+            const customInput = document.getElementById(`${prefix}-people-custom`);
+            if (!selectEl || !customInput) return;
+
+            if (selectEl.value === 'custom') {
+                customInput.classList.remove('hidden');
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+            }
+        }
+
+        function getSelectedPeopleCount(prefix) {
+            const selectEl = document.getElementById(`${prefix}-people`);
+            const customInput = document.getElementById(`${prefix}-people-custom`);
+            if (!selectEl) return 0;
+
+            if (selectEl.value === 'custom') {
+                const customVal = parseInt(customInput ? customInput.value : 0);
+                return isNaN(customVal) || customVal <= 0 ? 1 : customVal;
+            } else {
+                return parseInt(selectEl.value) || 0;
+            }
+        }
 
         // ---------------------------------------------------------
         // 2. FEEDBACK TATTILE (Vibrazione)
@@ -1936,8 +1974,7 @@
             const joinedRaw =
                 document.getElementById('input-joined').value.trim();
 
-            const rawPeople =
-                parseInt(document.getElementById('input-people').value);
+            const rawPeople = getSelectedPeopleCount('input');
 
             const chairs =
                 parseInt(document.getElementById('input-chairs').value) || 0;
@@ -2043,6 +2080,10 @@
 
                 document.getElementById('booking-form').reset();
 
+                document.getElementById('input-people').value = '2';
+                document.getElementById('input-people-custom').classList.add('hidden');
+                document.getElementById('input-people-custom').value = '';
+
                 document.getElementById('input-time').value =
                     "20:30";
 
@@ -2077,8 +2118,7 @@
             const table =
                 document.getElementById('walkin-table').value.trim();
 
-            const rawPeople =
-                parseInt(document.getElementById('walkin-people').value);
+            const rawPeople = getSelectedPeopleCount('walkin');
 
             const chairs =
                 parseInt(document.getElementById('walkin-chairs').value) || 0;
@@ -2162,6 +2202,8 @@
                 document.getElementById('walkin-form').reset();
 
                 document.getElementById('walkin-people').value = '2';
+                document.getElementById('walkin-people-custom').classList.add('hidden');
+                document.getElementById('walkin-people-custom').value = '';
 
                 document.getElementById('walkin-chairs').value = '0';
 
@@ -2483,8 +2525,15 @@
                 );
 
 
-            document.getElementById('edit-people').value =
-                netPeople > 20 ? '21' : netPeople.toString();
+            if (netPeople <= 20) {
+                document.getElementById('edit-people').value = netPeople.toString();
+                document.getElementById('edit-people-custom').classList.add('hidden');
+                document.getElementById('edit-people-custom').value = '';
+            } else {
+                document.getElementById('edit-people').value = 'custom';
+                document.getElementById('edit-people-custom').classList.remove('hidden');
+                document.getElementById('edit-people-custom').value = netPeople.toString();
+            }
 
             document.getElementById('edit-chairs').value =
                 (b.chairs || 0).toString();
@@ -2530,8 +2579,7 @@
             const joinedRaw =
                 document.getElementById('edit-joined').value.trim();
 
-            const rawPeople =
-                parseInt(document.getElementById('edit-people').value);
+            const rawPeople = getSelectedPeopleCount('edit');
 
             const chairs =
                 parseInt(document.getElementById('edit-chairs').value) || 0;
