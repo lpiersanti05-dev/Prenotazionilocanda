@@ -1369,7 +1369,7 @@
 
     <script>
 
-        // ---------------------------------------------------------
+       // ---------------------------------------------------------
         // 2. FEEDBACK TATTILE (Vibrazione)
         // ---------------------------------------------------------
         function triggerHaptic(duration = 15) {
@@ -1389,11 +1389,56 @@
         });
 
         // ---------------------------------------------------------
-        // 3. NOTIFICHE A SCOMPARSA (Toast Style iOS)
+        // 3. NOTIFICHE A SCOMPARSA (Toast Style iOS) & AUDIO PUSH
         // ---------------------------------------------------------
+        
+        // Richiesta permessi Notifiche Browser all'avvio
+        function requestNotificationPermission() {
+            if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+        }
+
+        // Sintesi sonora di notifica (Web Audio API - Nessun file esterno necessario)
+        function playNotificationSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // Nota D5
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // Salta a A5
+                
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch(e) {}
+        }
+
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             if (!container) return;
+
+            // Riproduci suono e notifica di sistema se è un evento importante
+            if (type === 'priority' || type === 'error' || type === 'success') {
+                playNotificationSound();
+            }
+
+            // Invia anche notifica push nativa del browser se attiva in background
+            if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+                try {
+                    new Notification("Locanda del Convento", {
+                        body: message,
+                        icon: "image.png"
+                    });
+                } catch(e) {}
+            }
 
             const toast = document.createElement('div');
             toast.className = `pointer-events-auto px-4 py-3 rounded-2xl text-xs font-bold shadow-xl animate-toast flex items-center gap-2 max-w-sm text-center border backdrop-blur-xl ${
@@ -1418,7 +1463,6 @@
                 setTimeout(() => toast.remove(), 300);
             }, 3500);
         }
-
         // ---------------------------------------------------------
         // 4. FUNZIONE NOTE RAPIDE
         // ---------------------------------------------------------
