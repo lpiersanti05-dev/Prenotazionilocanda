@@ -580,6 +580,14 @@
                         <span id="notif-toggle-icon">🔔</span>
                     </button>
 
+                    <!-- PULSANTE SILENZIOSO (PER CHI NON STA AL LAVORO) -->
+                    <button onclick="toggleMuteNotifications()"
+                        id="btn-mute"
+                        title="Silenzia/Attiva Notifiche Fuori Lavoro"
+                        class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
+                        <span id="mute-toggle-icon">🔊</span>
+                    </button>
+
                     <button onclick="toggleTheme()"
                         class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
                         <span id="theme-toggle-icon">🌙</span>
@@ -1389,8 +1397,23 @@
     <script>
 
         // ---------------------------------------------------------
-        // GESTIONE NOTIFICHE LOCALI IN BACKGROUND
+        // GESTIONE NOTIFICHE LOCALI & SILENZIOSO FUORI LAVORO
         // ---------------------------------------------------------
+        let isMuted = localStorage.getItem('isMuted') === 'true';
+        let swRegistration = null;
+
+        // Registra il Service Worker se supportato dal browser per le notifiche anche con schermo spendo
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => {
+                        swRegistration = reg;
+                        console.log('Service Worker registrato con successo:', reg);
+                    })
+                    .catch(err => console.warn('Service Worker non registrato:', err));
+            });
+        }
+
         async function requestNotificationPermission() {
             if (!("Notification" in window)) {
                 showToast("Il tuo browser non supporta le notifiche di sistema.", "error");
@@ -1416,6 +1439,33 @@
             }
         }
 
+        function toggleMuteNotifications() {
+            isMuted = !isMuted;
+            localStorage.setItem('isMuted', isMuted);
+            updateMuteIcon();
+            if (isMuted) {
+                showToast("🔇 Notifiche SILENZIATE (Modalità Fuori Lavoro)", "priority");
+            } else {
+                showToast("🔊 Notifiche ATTIVE (Modalità Al Lavoro)", "success");
+            }
+        }
+
+        function updateMuteIcon() {
+            const btn = document.getElementById("btn-mute");
+            const icon = document.getElementById("mute-toggle-icon");
+            if (!icon || !btn) return;
+
+            if (isMuted) {
+                icon.innerText = "🔇";
+                btn.classList.add("bg-rose-100", "dark:bg-rose-950", "border-rose-400");
+                btn.classList.remove("bg-stone-100", "dark:bg-stone-800");
+            } else {
+                icon.innerText = "🔊";
+                btn.classList.remove("bg-rose-100", "dark:bg-rose-950", "border-rose-400");
+                btn.classList.add("bg-stone-100", "dark:bg-stone-800");
+            }
+        }
+
         function updateNotifIcon() {
             const icon = document.getElementById("notif-toggle-icon");
             if (!icon) return;
@@ -1427,24 +1477,40 @@
         }
 
         function triggerSystemNotification(title, body) {
-            // Vibra sempre se supportato
+            // SE L'UTENTE È FUORI LAVORO (SILENZIOSO ATTIVO), NON INVIA NIENTE!
+            if (isMuted) return;
+
+            // Vibra sempre se il dispositivo lo supporta
             triggerHaptic(100);
 
-            // Spara la notifica di sistema SOLO se l'app è in background (o scheda nascosta)
-            if (document.visibilityState === 'hidden' && "Notification" in window && Notification.permission === "granted") {
+            // Se il permesso c'è e l'app non è in primo piano
+            if ("Notification" in window && Notification.permission === "granted") {
                 try {
-                    const notif = new Notification(title, {
-                        body: body,
-                        icon: 'image.png',
-                        badge: 'image.png',
-                        tag: 'locanda-notification', // Evita spam raggruppando
-                        renotify: true
-                    });
+                    // Se il Service Worker è attivo lo spariamo da lì così suona pure a schermo bloccato
+                    if (swRegistration && swRegistration.showNotification) {
+                        swRegistration.showNotification(title, {
+                            body: body,
+                            icon: 'image.png',
+                            badge: 'image.png',
+                            vibrate: [200, 100, 200],
+                            tag: 'locanda-notification',
+                            renotify: true
+                        });
+                    } else if (document.visibilityState === 'hidden') {
+                        // Fallback su notifica di sistema standard lato finestra
+                        const notif = new Notification(title, {
+                            body: body,
+                            icon: 'image.png',
+                            badge: 'image.png',
+                            tag: 'locanda-notification',
+                            renotify: true
+                        });
 
-                    notif.onclick = function() {
-                        window.focus();
-                        this.close();
-                    };
+                        notif.onclick = function() {
+                            window.focus();
+                            this.close();
+                        };
+                    }
                 } catch(e) {
                     console.error("Errore invio notifica di sistema:", e);
                 }
@@ -1675,6 +1741,7 @@
         window.onload = function() {
             initTheme();
             updateNotifIcon();
+            updateMuteIcon();
             loadDateData();
             initLogoListener();
             
