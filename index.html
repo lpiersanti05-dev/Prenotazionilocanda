@@ -571,10 +571,20 @@
 
                 </div>
 
-                <button onclick="toggleTheme()"
-                    class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
-                    <span id="theme-toggle-icon">🌙</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <!-- PULSANTE ATTIVAZIONE NOTIFICHE BACKGROUND -->
+                    <button onclick="requestNotificationPermission()"
+                        id="btn-notifications"
+                        title="Attiva Notifiche Background"
+                        class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
+                        <span id="notif-toggle-icon">🔔</span>
+                    </button>
+
+                    <button onclick="toggleTheme()"
+                        class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
+                        <span id="theme-toggle-icon">🌙</span>
+                    </button>
+                </div>
 
             </div>
 
@@ -1379,6 +1389,69 @@
     <script>
 
         // ---------------------------------------------------------
+        // GESTIONE NOTIFICHE LOCALI IN BACKGROUND
+        // ---------------------------------------------------------
+        async function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                showToast("Il tuo browser non supporta le notifiche di sistema.", "error");
+                return;
+            }
+
+            if (Notification.permission === "granted") {
+                showToast("Notifiche di background già attive! 🔔", "success");
+                updateNotifIcon();
+                return;
+            }
+
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === "granted") {
+                    showToast("Notifiche attivate per l'app in background! 🔔", "success");
+                } else {
+                    showToast("Permesso notifiche negato.", "error");
+                }
+                updateNotifIcon();
+            } catch (e) {
+                console.error("Errore attivazione notifiche:", e);
+            }
+        }
+
+        function updateNotifIcon() {
+            const icon = document.getElementById("notif-toggle-icon");
+            if (!icon) return;
+            if ("Notification" in window && Notification.permission === "granted") {
+                icon.innerText = "🔔";
+            } else {
+                icon.innerText = "🔕";
+            }
+        }
+
+        function triggerSystemNotification(title, body) {
+            // Vibra sempre se supportato
+            triggerHaptic(100);
+
+            // Spara la notifica di sistema SOLO se l'app è in background (o scheda nascosta)
+            if (document.visibilityState === 'hidden' && "Notification" in window && Notification.permission === "granted") {
+                try {
+                    const notif = new Notification(title, {
+                        body: body,
+                        icon: 'image.png',
+                        badge: 'image.png',
+                        tag: 'locanda-notification', // Evita spam raggruppando
+                        renotify: true
+                    });
+
+                    notif.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                } catch(e) {
+                    console.error("Errore invio notifica di sistema:", e);
+                }
+            }
+        }
+
+        // ---------------------------------------------------------
         // GESTIONE NUMERO PERSONE PERSONALIZZATO
         // ---------------------------------------------------------
         function toggleCustomPeopleInput(prefix) {
@@ -1601,6 +1674,7 @@
 
         window.onload = function() {
             initTheme();
+            updateNotifIcon();
             loadDateData();
             initLogoListener();
             
@@ -1854,7 +1928,7 @@
 
 
         // ---------------------------------------------------------
-        // 4. FIREBASE REAL-TIME
+        // 4. FIREBASE REAL-TIME (CON NOTIFICHE PER TAVOLI ARRIVATI E PRONTI)
         // ---------------------------------------------------------
 
         function loadDateData() {
@@ -1885,6 +1959,12 @@
                     let hasNewPriorityAlert = false;
                     let priorityTableInfo = "";
 
+                    let hasNewArrivedAlert = false;
+                    let arrivedTableInfo = "";
+
+                    let hasNewReadyOrderAlert = false;
+                    let readyOrderTableInfo = "";
+
                     snapshot.forEach((doc) => {
                         const data = doc.data();
                         const bId = doc.id;
@@ -1893,22 +1973,54 @@
                             ...data
                         });
 
-                        // Controlla se è stata attivata la priorità in tempo reale da un altro dispositivo
+                        // Controlla le variazioni rispetto al caricamento precedente (se scattate da altri dispositivi)
                         const oldB = previousBookingsMap.get(bId);
-                        if (data.priority && (!oldB || !oldB.priority)) {
-                            hasNewPriorityAlert = true;
-                            priorityTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
+                        if (oldB) {
+                            // 1. Tavolo segnato come ARRIVATO
+                            if (data.arrived && !oldB.arrived) {
+                                hasNewArrivedAlert = true;
+                                arrivedTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
+                            }
+                            // 2. Tavolo segnato come PRONTO PER ORDINARE
+                            if (data.readyToOrder && !oldB.readyToOrder) {
+                                hasNewReadyOrderAlert = true;
+                                readyOrderTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
+                            }
+                            // 3. Nuova PRIORITÀ assegnata
+                            if (data.priority && !oldB.priority) {
+                                hasNewPriorityAlert = true;
+                                priorityTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
+                            }
                         }
                     });
+
+                    // Evita il trigger al primissimo caricamento iniziale della pagina
+                    const isFirstLoad = previousBookingsMap.size === 0;
 
                     bookings = newBookings;
                     previousBookingsMap.clear();
                     bookings.forEach(b => previousBookingsMap.set(b.id, { ...b }));
 
-                    // Se un altro dispositivo ha impostato una priorità, mostra la notifica toast e vibra
-                    if (hasNewPriorityAlert) {
-                        triggerHaptic(60);
-                        showToast(`🚨 PRIORITÀ ASSEGNATA: ${priorityTableInfo}!`, 'priority');
+                    if (!isFirstLoad) {
+                        // GESTIONE AVVISI IN FIRST-GROUND E NOTIFICHE DI SISTEMA IN BACKGROUND
+
+                        // 1. Notifica Tavolo Arrivato
+                        if (hasNewArrivedAlert) {
+                            showToast(`📍 ARRIVATO: ${arrivedTableInfo}!`, 'success');
+                            triggerSystemNotification(`📍 Tavolo Arrivato!`, `${arrivedTableInfo} è appena arrivato al locale.`);
+                        }
+
+                        // 2. Notifica Pronto per Ordinare
+                        if (hasNewReadyOrderAlert) {
+                            showToast(`🛎️ PRONTO ORDINE: ${readyOrderTableInfo}!`, 'priority');
+                            triggerSystemNotification(`🛎️ Tavolo Pronto per Ordinare!`, `${readyOrderTableInfo} è pronto per prendere la comanda!`);
+                        }
+
+                        // 3. Notifica Priorità Alta
+                        if (hasNewPriorityAlert) {
+                            showToast(`🚨 PRIORITÀ ASSEGNATA: ${priorityTableInfo}!`, 'priority');
+                            triggerSystemNotification(`⭐ Priorità Assegnata!`, `Priorità alta richiesta per ${priorityTableInfo}.`);
+                        }
                     }
 
                     renderBookings();
