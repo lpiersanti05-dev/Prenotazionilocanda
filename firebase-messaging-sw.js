@@ -1,26 +1,22 @@
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
+// Metti le stesse API keys che hai nel tuo index.html
 firebase.initializeApp({
-    apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
-    authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
+    apiKey: "AIzaSy...",
     projectId: "prenotazionilocanda-7808c",
-    storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
     messagingSenderId: "407224446329",
-    appId: "1:407224446329:web:e213fbaf5aaef702af53a8"
+    appId: "1:407224446329:web:..."
 });
 
 const messaging = firebase.messaging();
 
+// Gestisce la notifica quando l'app è in background
 messaging.onBackgroundMessage((payload) => {
-    console.log('[sw.js] Notifica in Background ricevuta: ', payload);
     const notificationTitle = payload.notification.title;
     const notificationOptions = {
         body: payload.notification.body,
-        icon: 'image.png',
-        badge: 'image.png',
-        vibrate: [200, 100, 200]
+        icon: 'image.png'
     };
-
     self.registration.showNotification(notificationTitle, notificationOptions);
 });
