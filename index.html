@@ -1699,7 +1699,10 @@
         firebase.initializeApp(firebaseConfig);
 
         const db = firebase.firestore();
-
+        // SISTEMA KEEP-ALIVE SVEGLIA-SOCKET (Previene i 10s di idle)
+        setInterval(() => {
+            if (db) db.collection("settings").doc("ping").set({ lastPing: Date.now() }, { merge: true });
+        }, 2500);
         // 6. SUPPORT OFFLINE (Firebase Persistence)
         db.enablePersistence({ synchronizeTabs: true })
           .catch((err) => {
