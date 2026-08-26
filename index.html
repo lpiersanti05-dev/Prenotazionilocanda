@@ -1709,6 +1709,8 @@
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+        const todayStr = new Date().toISOString().split('T')[0];
+document.getElementById('current-date').value = todayStr;
 const messaging = firebase.messaging();
 
 function requestNotificationPermission() {
@@ -4363,7 +4365,20 @@ function requestNotificationPermission() {
         function closeServizioModal() {
             document.getElementById('servizio-modal').classList.add('hidden');
         }
-
+// Imposta la data odierna all'avvio e ricarica i tavoli della serata
+window.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.getElementById('current-date');
+    if (dateInput && !dateInput.value) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        dateInput.value = todayStr;
+    }
+    // Chiama la funzione principale che carica i dati della serata se esiste
+    if (typeof loadDateData === "function") {
+        loadDateData();
+    } else if (typeof loadBookings === "function") {
+        loadBookings();
+    }
+});
     </script>
 
 </body>
