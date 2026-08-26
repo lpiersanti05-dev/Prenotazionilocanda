@@ -1686,18 +1686,7 @@
         // 1. CONFIGURAZIONE FIREBASE
         // ---------------------------------------------------------
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
-            authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
-            projectId: "prenotazionilocanda-7808c",
-            storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
-            messagingSenderId: "407224446329",
-            appId: "1:407224446329:web:e213fbaf5aaef702af53a8",
-            measurementId: "G-436NY8G6XG"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const firebaseConfig = {
+       const firebaseConfig = {
     apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
     authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
     projectId: "prenotazionilocanda-7808c",
@@ -1707,11 +1696,41 @@
     measurementId: "G-436NY8G6XG"
 };
 
+// 1. Inizializziamo Firebase UNA SOLA VOLTA
 firebase.initializeApp(firebaseConfig);
+
+// 2. Database e Messaging pronti all'uso
 const db = firebase.firestore();
-        const todayStr = new Date().toISOString().split('T')[0];
-document.getElementById('current-date').value = todayStr;
 const messaging = firebase.messaging();
+
+// 3. Mettiamo la data odierna nel campo
+const todayStr = new Date().toISOString().split('T')[0];
+const dateInput = document.getElementById('current-date');
+if (dateInput) dateInput.value = todayStr;
+
+// 4. Funzione permessi notifiche
+function requestNotificationPermission() {
+    if (!("Notification" in window)) return;
+
+    Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+            messaging.getToken({ vapidKey: "" })
+                .then((token) => {
+                    if (token) {
+                        db.collection("fcmTokens").doc(token).set({
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            device: navigator.userAgent
+                        });
+                        showToast("Notifiche Push Background Attivate! 🔔", "success");
+                    }
+                })
+                .catch(err => console.error("Errore Token FCM:", err));
+        } else {
+            showToast("Permesso notifiche negato.", "error");
+        }
+        updateNotifIcon();
+    });
+}
 
 function requestNotificationPermission() {
     if (!("Notification" in window)) return;
