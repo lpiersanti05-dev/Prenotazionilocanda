@@ -615,7 +615,15 @@
                 </button>
 
             </div>
-
+<!-- CONTROLLI NOTIFICHE E AUDIO -->
+<div class="flex items-center justify-between gap-2 bg-stone-100/80 dark:bg-stone-800/80 backdrop-blur-md px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 text-xs">
+    <button onclick="requestNotificationPermission()" class="btn-tap flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold hover:underline">
+        <span>🔔</span> Attiva Notifiche Push
+    </button>
+    <button id="btn-toggle-sound" onclick="toggleSoundMute()" class="btn-tap flex items-center gap-1.5 text-stone-600 dark:text-stone-300 font-bold">
+        <span id="sound-icon">🔊</span> <span id="sound-text">Audio Attivo</span>
+    </button>
+</div>
         </div>
 
     </header>
@@ -1370,6 +1378,29 @@
     <script>
 
        // ---------------------------------------------------------
+        // 2. FEEDBACK TATTILE (Vibrazione)
+        // ---------------------------------------------------------
+        function triggerHaptic(duration = 15) {
+            if (window.navigator && window.navigator.vibrate) {
+                try {
+                    window.navigator.vibrate(duration);
+                } catch(e) {}
+            }
+        }
+
+        // Intercetta i click su tutti i pulsanti e tab per il feedback tattile automatico
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('button, .btn-tap');
+            if (btn) {
+                triggerHaptic(12);
+            }
+        });
+
+        // ---------------------------------------------------------
+        // 3. NOTIFICHE A SCOMPARSA (Toast Style iOS) & AUDIO PUSH
+        // ---------------------------------------------------------
+        
+        // ---------------------------------------------------------
         // 2. FEEDBACK TATTILE (Vibrazione)
         // ---------------------------------------------------------
         function triggerHaptic(duration = 15) {
