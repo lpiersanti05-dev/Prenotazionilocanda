@@ -22,7 +22,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
- 
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
@@ -567,7 +567,10 @@
                     </div>
  
                 </div>
- 
+                 <button onclick="richiediPermessiNotifiche()"
+        class="btn-tap w-10 h-10 mr-2 rounded-xl bg-emerald-100 dark:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-lg shadow-sm hover:shadow-md transition-all">
+        🔔
+    </button>
                 <button onclick="toggleTheme()"
                     class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
                     <span id="theme-toggle-icon">🌙</span>
@@ -1522,7 +1525,35 @@
         firebase.initializeApp(firebaseConfig);
  
         const db = firebase.firestore();
- 
+         const messaging = firebase.messaging();
+
+async function richiediPermessiNotifiche() {
+    if (!('Notification' in window)) return showError("Browser NPC, niente notifiche.");
+
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            // Genera il token VIP per questo dispositivo
+            const token = await messaging.getToken({ 
+                vapidKey: 'INCOLLA_QUI_LA_TUA_VAPID_KEY' 
+            });
+
+            if (token) {
+                // Salva il token nel DB così il buttafuori sa a chi scrivere
+                await db.collection("fcm_tokens").doc(token).set({
+                    token: token,
+                    device: navigator.userAgent,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast("Notifiche Push attivate! W pick 🌟");
+            }
+        } else {
+            showToast("Permessi negati 💀", "error");
+        }
+    } catch (e) {
+        console.error("Errore FCM:", e);
+    }
+}
         // 6. SUPPORT OFFLINE (Firebase Persistence)
         db.enablePersistence({ synchronizeTabs: true })
           .catch((err) => {
@@ -1563,7 +1594,6 @@
  
         window.onload = function() {
             initTheme();
-            initNotifications();
             loadDateData();
             initLogoListener();
             
@@ -1584,60 +1614,12 @@
  
         let swRegistration = null;
  
-        async function initNotifications() {
- 
-            if (!('Notification' in window)) {
-                console.warn("Le notifiche non sono supportate su questo browser.");
-                return;
-            }
- 
-            try {
-                if (Notification.permission === 'default') {
-                    await Notification.requestPermission();
-                }
-            } catch (e) {
-                console.warn("Permesso notifiche non concesso:", e);
-            }
- 
-            if ('serviceWorker' in navigator) {
-                try {
-                    swRegistration = await navigator.serviceWorker.register('sw.js');
-                } catch (e) {
-                    console.warn("Service Worker non registrato (notifiche in background limitate a questa scheda):", e);
-                }
-            }
- 
-        }
+        
  
         // Invia una notifica di sistema SOLO quando l'app è in background,
         // così chi non è al lavoro non viene disturbato da tutte le notifiche
         // mentre ha l'app aperta e visibile davanti a sé (in quel caso si vede già il toast).
-        function sendBackgroundNotification(title, body, tag) {
- 
-            if (document.visibilityState !== 'hidden') return;
- 
-            if (!('Notification' in window) || Notification.permission !== 'granted') return;
- 
-            const options = {
-                body,
-                icon: 'image.png',
-                badge: 'image.png',
-                tag,
-                renotify: true,
-                vibrate: [120, 60, 120]
-            };
- 
-            try {
-                if (swRegistration && swRegistration.showNotification) {
-                    swRegistration.showNotification(title, options);
-                } else {
-                    new Notification(title, options);
-                }
-            } catch (e) {
-                console.warn("Impossibile mostrare la notifica:", e);
-            }
- 
-        }
+        
  
  
         // ---------------------------------------------------------
