@@ -22,7 +22,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
@@ -356,7 +356,7 @@
                             Persone
                         </label>
 
-                        <select id="edit-people" required onchange="toggleCustomPeopleInput('edit')"
+                        <select id="edit-people" required
                             class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all cursor-pointer">
 
                             <option value="1">1 Persona</option>
@@ -379,12 +379,9 @@
                             <option value="18">18 Persone</option>
                             <option value="19">19 Persone</option>
                             <option value="20">20 Persone</option>
-                            <option value="custom">✏️ Inserisci numero personalizzato...</option>
+                            <option value="21">20+ Tavolata</option>
 
                         </select>
-
-                        <input type="number" id="edit-people-custom" min="1" placeholder="Scrivi n° coperti..."
-                            class="hidden w-full mt-2 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
                     </div>
 
                     <div>
@@ -571,28 +568,10 @@
 
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <!-- PULSANTE ATTIVAZIONE NOTIFICHE BACKGROUND -->
-                    <button onclick="requestNotificationPermission()"
-                        id="btn-notifications"
-                        title="Attiva Notifiche Background"
-                        class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
-                        <span id="notif-toggle-icon">🔔</span>
-                    </button>
-
-                    <!-- PULSANTE SILENZIOSO (PER CHI NON STA AL LAVORO) -->
-                    <button onclick="toggleMuteNotifications()"
-                        id="btn-mute"
-                        title="Silenzia/Attiva Notifiche Fuori Lavoro"
-                        class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
-                        <span id="mute-toggle-icon">🔊</span>
-                    </button>
-
-                    <button onclick="toggleTheme()"
-                        class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
-                        <span id="theme-toggle-icon">🌙</span>
-                    </button>
-                </div>
+                <button onclick="toggleTheme()"
+                    class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
+                    <span id="theme-toggle-icon">🌙</span>
+                </button>
 
             </div>
 
@@ -762,7 +741,7 @@
                                 👥 Persone
                             </label>
 
-                            <select id="walkin-people" required onchange="toggleCustomPeopleInput('walkin')"
+                            <select id="walkin-people" required
                                 class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all cursor-pointer">
                                 <option value="1">1 Persona</option>
                                 <option value="2" selected>2 Persone</option>
@@ -784,11 +763,8 @@
                                 <option value="18">18 Persone</option>
                                 <option value="19">19 Persone</option>
                                 <option value="20">20 Persone</option>
-                                <option value="custom">✏️ Inserisci numero personalizzato...</option>
+                                <option value="21">20+ Tavolata</option>
                             </select>
-
-                            <input type="number" id="walkin-people-custom" min="1" placeholder="Scrivi n° coperti..."
-                                class="hidden w-full mt-2 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all">
                         </div>
 
                         <div>
@@ -908,7 +884,7 @@
                                 👥 Persone Prenotate
                             </label>
 
-                            <select id="input-people" required onchange="toggleCustomPeopleInput('input')"
+                            <select id="input-people" required
                                 class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all cursor-pointer">
 
                                 <option value="1">1 Persona</option>
@@ -931,12 +907,9 @@
                                 <option value="18">18 Persone</option>
                                 <option value="19">19 Persone</option>
                                 <option value="20">20 Persone</option>
-                                <option value="custom">✏️ Inserisci numero personalizzato...</option>
+                                <option value="21">20+ Tavolata</option>
 
                             </select>
-
-                            <input type="number" id="input-people-custom" min="1" placeholder="Scrivi n° coperti..."
-                                class="hidden w-full mt-2 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
                         </div>
 
                         <div>
@@ -1190,7 +1163,7 @@
                             <g id="map-t12" onclick="clickMapTable('12')"><rect x="230" y="125" width="50" height="30" rx="5" class="table-box table-free"/><text x="255" y="144" text-anchor="middle" class="table-text-free">12</text></g>
                             <g id="map-t11" onclick="clickMapTable('11')"><rect x="230" y="175" width="50" height="30" rx="5" class="table-box table-free"/><text x="255" y="194" text-anchor="middle" class="table-text-free">11</text></g>
                             <g id="map-t10" onclick="clickMapTable('10')"><rect x="235" y="230" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="247" text-anchor="middle" class="table-text-free">10</text></g>
-                            <g id="map-t9" onclick="clickMapTable('9')"><rect x="235" y="265" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="282" text-anchor="middle" class="table-text-free">9</text></g>
+                            <g id="map-t9" onclick="clickMapTable('9')"><rect x="235" y="265" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="282" text-anchor="middle" class="table-text-free">10</text></g>
                             <g id="map-t8" onclick="clickMapTable('8')"><rect x="235" y="300" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="317" text-anchor="middle" class="table-text-free">8</text></g>
                             <g id="map-t7" onclick="clickMapTable('7')"><rect x="225" y="340" width="60" height="30" rx="5" class="table-box table-free"/><text x="255" y="359" text-anchor="middle" class="table-text-free">7</text></g>
                             <g id="map-t6" onclick="clickMapTable('6')"><rect x="235" y="390" width="40" height="25" rx="5" class="table-box table-free"/><text x="255" y="407" text-anchor="middle" class="table-text-free">6</text></g>
@@ -1397,156 +1370,6 @@
     <script>
 
         // ---------------------------------------------------------
-        // GESTIONE NOTIFICHE LOCALI & SILENZIOSO FUORI LAVORO
-        // ---------------------------------------------------------
-        let isMuted = localStorage.getItem('isMuted') === 'true';
-        let swRegistration = null;
-
-        // Registra il Service Worker se supportato dal browser per le notifiche anche con schermo spendo
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => {
-                        swRegistration = reg;
-                        console.log('Service Worker registrato con successo:', reg);
-                    })
-                    .catch(err => console.warn('Service Worker non registrato:', err));
-            });
-        }
-
-        async function requestNotificationPermission() {
-            if (!("Notification" in window)) {
-                showToast("Il tuo browser non supporta le notifiche di sistema.", "error");
-                return;
-            }
-
-            if (Notification.permission === "granted") {
-                showToast("Notifiche di background già attive! 🔔", "success");
-                updateNotifIcon();
-                return;
-            }
-
-            try {
-                const permission = await Notification.requestPermission();
-                if (permission === "granted") {
-                    showToast("Notifiche attivate per l'app in background! 🔔", "success");
-                } else {
-                    showToast("Permesso notifiche negato.", "error");
-                }
-                updateNotifIcon();
-            } catch (e) {
-                console.error("Errore attivazione notifiche:", e);
-            }
-        }
-
-        function toggleMuteNotifications() {
-            isMuted = !isMuted;
-            localStorage.setItem('isMuted', isMuted);
-            updateMuteIcon();
-            if (isMuted) {
-                showToast("🔇 Notifiche SILENZIATE (Modalità Fuori Lavoro)", "priority");
-            } else {
-                showToast("🔊 Notifiche ATTIVE (Modalità Al Lavoro)", "success");
-            }
-        }
-
-        function updateMuteIcon() {
-            const btn = document.getElementById("btn-mute");
-            const icon = document.getElementById("mute-toggle-icon");
-            if (!icon || !btn) return;
-
-            if (isMuted) {
-                icon.innerText = "🔇";
-                btn.classList.add("bg-rose-100", "dark:bg-rose-950", "border-rose-400");
-                btn.classList.remove("bg-stone-100", "dark:bg-stone-800");
-            } else {
-                icon.innerText = "🔊";
-                btn.classList.remove("bg-rose-100", "dark:bg-rose-950", "border-rose-400");
-                btn.classList.add("bg-stone-100", "dark:bg-stone-800");
-            }
-        }
-
-        function updateNotifIcon() {
-            const icon = document.getElementById("notif-toggle-icon");
-            if (!icon) return;
-            if ("Notification" in window && Notification.permission === "granted") {
-                icon.innerText = "🔔";
-            } else {
-                icon.innerText = "🔕";
-            }
-        }
-
-        function triggerSystemNotification(title, body) {
-            // SE L'UTENTE È FUORI LAVORO (SILENZIOSO ATTIVO), NON INVIA NIENTE!
-            if (isMuted) return;
-
-            // Vibra sempre se il dispositivo lo supporta
-            triggerHaptic(100);
-
-            // Se il permesso c'è e l'app non è in primo piano
-            if ("Notification" in window && Notification.permission === "granted") {
-                try {
-                    // Se il Service Worker è attivo lo spariamo da lì così suona pure a schermo bloccato
-                    if (swRegistration && swRegistration.showNotification) {
-                        swRegistration.showNotification(title, {
-                            body: body,
-                            icon: 'image.png',
-                            badge: 'image.png',
-                            vibrate: [200, 100, 200],
-                            tag: 'locanda-notification',
-                            renotify: true
-                        });
-                    } else if (document.visibilityState === 'hidden') {
-                        // Fallback su notifica di sistema standard lato finestra
-                        const notif = new Notification(title, {
-                            body: body,
-                            icon: 'image.png',
-                            badge: 'image.png',
-                            tag: 'locanda-notification',
-                            renotify: true
-                        });
-
-                        notif.onclick = function() {
-                            window.focus();
-                            this.close();
-                        };
-                    }
-                } catch(e) {
-                    console.error("Errore invio notifica di sistema:", e);
-                }
-            }
-        }
-
-        // ---------------------------------------------------------
-        // GESTIONE NUMERO PERSONE PERSONALIZZATO
-        // ---------------------------------------------------------
-        function toggleCustomPeopleInput(prefix) {
-            const selectEl = document.getElementById(`${prefix}-people`);
-            const customInput = document.getElementById(`${prefix}-people-custom`);
-            if (!selectEl || !customInput) return;
-
-            if (selectEl.value === 'custom') {
-                customInput.classList.remove('hidden');
-                customInput.focus();
-            } else {
-                customInput.classList.add('hidden');
-            }
-        }
-
-        function getSelectedPeopleCount(prefix) {
-            const selectEl = document.getElementById(`${prefix}-people`);
-            const customInput = document.getElementById(`${prefix}-people-custom`);
-            if (!selectEl) return 0;
-
-            if (selectEl.value === 'custom') {
-                const customVal = parseInt(customInput ? customInput.value : 0);
-                return isNaN(customVal) || customVal <= 0 ? 1 : customVal;
-            } else {
-                return parseInt(selectEl.value) || 0;
-            }
-        }
-
-        // ---------------------------------------------------------
         // 2. FEEDBACK TATTILE (Vibrazione)
         // ---------------------------------------------------------
         function triggerHaptic(duration = 15) {
@@ -1686,80 +1509,20 @@
         // 1. CONFIGURAZIONE FIREBASE
         // ---------------------------------------------------------
 
-       const firebaseConfig = {
-    apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
-    authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
-    projectId: "prenotazionilocanda-7808c",
-    storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
-    messagingSenderId: "407224446329",
-    appId: "1:407224446329:web:e213fbaf5aaef702af53a8",
-    measurementId: "G-436NY8G6XG"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
+            authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
+            projectId: "prenotazionilocanda-7808c",
+            storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
+            messagingSenderId: "407224446329",
+            appId: "1:407224446329:web:e213fbaf5aaef702af53a8",
+            measurementId: "G-436NY8G6XG"
+        };
 
-// 1. Inizializziamo Firebase UNA SOLA VOLTA
-firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(firebaseConfig);
 
-// 2. Database e Messaging pronti all'uso
-const db = firebase.firestore();
-const messaging = firebase.messaging();
-
-// 3. Mettiamo la data odierna nel campo
-const todayStr = new Date().toISOString().split('T')[0];
-const dateInput = document.getElementById('current-date');
-if (dateInput) dateInput.value = todayStr;
-
-// 4. Funzione permessi notifiche
-function requestNotificationPermission() {
-    if (!("Notification" in window)) return;
-
-    Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-            messaging.getToken({ vapidKey: "" })
-                .then((token) => {
-                    if (token) {
-                        db.collection("fcmTokens").doc(token).set({
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                            device: navigator.userAgent
-                        });
-                        showToast("Notifiche Push Background Attivate! 🔔", "success");
-                    }
-                })
-                .catch(err => console.error("Errore Token FCM:", err));
-        } else {
-            showToast("Permesso notifiche negato.", "error");
-        }
-        updateNotifIcon();
-    });
-}
-
-function requestNotificationPermission() {
-    if (!("Notification" in window)) return;
-
-    Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-            messaging.getToken({ vapidKey: "" })
-                .then((token) => {
-                    if (token) {
-                        // Salva il token Push su Firestore per la Cloud Function
-                        db.collection("fcmTokens").doc(token).set({
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                            device: navigator.userAgent
-                        });
-                        showToast("Notifiche Push Background Attivate! 🔔", "success");
-                    }
-                })
-                .catch(err => console.error("Errore Token FCM:", err));
-        } else {
-            showToast("Permesso notifiche negato.", "error");
-        }
-        updateNotifIcon();
-    });
-}
         const db = firebase.firestore();
-        // SISTEMA KEEP-ALIVE SVEGLIA-SOCKET (Previene i 10s di idle)
-        setInterval(() => {
-            if (db) db.collection("settings").doc("ping").set({ lastPing: Date.now() }, { merge: true });
-        }, 2500);
+
         // 6. SUPPORT OFFLINE (Firebase Persistence)
         db.enablePersistence({ synchronizeTabs: true })
           .catch((err) => {
@@ -1800,8 +1563,6 @@ function requestNotificationPermission() {
 
         window.onload = function() {
             initTheme();
-            updateNotifIcon();
-            updateMuteIcon();
             loadDateData();
             initLogoListener();
             
@@ -2055,7 +1816,7 @@ function requestNotificationPermission() {
 
 
         // ---------------------------------------------------------
-        // 4. FIREBASE REAL-TIME (CON NOTIFICHE PER TAVOLI ARRIVATI E PRONTI)
+        // 4. FIREBASE REAL-TIME
         // ---------------------------------------------------------
 
         function loadDateData() {
@@ -2086,12 +1847,6 @@ function requestNotificationPermission() {
                     let hasNewPriorityAlert = false;
                     let priorityTableInfo = "";
 
-                    let hasNewArrivedAlert = false;
-                    let arrivedTableInfo = "";
-
-                    let hasNewReadyOrderAlert = false;
-                    let readyOrderTableInfo = "";
-
                     snapshot.forEach((doc) => {
                         const data = doc.data();
                         const bId = doc.id;
@@ -2100,54 +1855,22 @@ function requestNotificationPermission() {
                             ...data
                         });
 
-                        // Controlla le variazioni rispetto al caricamento precedente (se scattate da altri dispositivi)
+                        // Controlla se è stata attivata la priorità in tempo reale da un altro dispositivo
                         const oldB = previousBookingsMap.get(bId);
-                        if (oldB) {
-                            // 1. Tavolo segnato come ARRIVATO
-                            if (data.arrived && !oldB.arrived) {
-                                hasNewArrivedAlert = true;
-                                arrivedTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
-                            }
-                            // 2. Tavolo segnato come PRONTO PER ORDINARE
-                            if (data.readyToOrder && !oldB.readyToOrder) {
-                                hasNewReadyOrderAlert = true;
-                                readyOrderTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
-                            }
-                            // 3. Nuova PRIORITÀ assegnata
-                            if (data.priority && !oldB.priority) {
-                                hasNewPriorityAlert = true;
-                                priorityTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
-                            }
+                        if (data.priority && (!oldB || !oldB.priority)) {
+                            hasNewPriorityAlert = true;
+                            priorityTableInfo = `Tavolo ${data.table} (${data.name || 'Cliente'})`;
                         }
                     });
-
-                    // Evita il trigger al primissimo caricamento iniziale della pagina
-                    const isFirstLoad = previousBookingsMap.size === 0;
 
                     bookings = newBookings;
                     previousBookingsMap.clear();
                     bookings.forEach(b => previousBookingsMap.set(b.id, { ...b }));
 
-                    if (!isFirstLoad) {
-                        // GESTIONE AVVISI IN FIRST-GROUND E NOTIFICHE DI SISTEMA IN BACKGROUND
-
-                        // 1. Notifica Tavolo Arrivato
-                        if (hasNewArrivedAlert) {
-                            showToast(`📍 ARRIVATO: ${arrivedTableInfo}!`, 'success');
-                            triggerSystemNotification(`📍 Tavolo Arrivato!`, `${arrivedTableInfo} è appena arrivato al locale.`);
-                        }
-
-                        // 2. Notifica Pronto per Ordinare
-                        if (hasNewReadyOrderAlert) {
-                            showToast(`🛎️ PRONTO ORDINE: ${readyOrderTableInfo}!`, 'priority');
-                            triggerSystemNotification(`🛎️ Tavolo Pronto per Ordinare!`, `${readyOrderTableInfo} è pronto per prendere la comanda!`);
-                        }
-
-                        // 3. Notifica Priorità Alta
-                        if (hasNewPriorityAlert) {
-                            showToast(`🚨 PRIORITÀ ASSEGNATA: ${priorityTableInfo}!`, 'priority');
-                            triggerSystemNotification(`⭐ Priorità Assegnata!`, `Priorità alta richiesta per ${priorityTableInfo}.`);
-                        }
+                    // Se un altro dispositivo ha impostato una priorità, mostra la notifica toast e vibra
+                    if (hasNewPriorityAlert) {
+                        triggerHaptic(60);
+                        showToast(`🚨 PRIORITÀ ASSEGNATA: ${priorityTableInfo}!`, 'priority');
                     }
 
                     renderBookings();
@@ -2213,7 +1936,8 @@ function requestNotificationPermission() {
             const joinedRaw =
                 document.getElementById('input-joined').value.trim();
 
-            const rawPeople = getSelectedPeopleCount('input');
+            const rawPeople =
+                parseInt(document.getElementById('input-people').value);
 
             const chairs =
                 parseInt(document.getElementById('input-chairs').value) || 0;
@@ -2319,10 +2043,6 @@ function requestNotificationPermission() {
 
                 document.getElementById('booking-form').reset();
 
-                document.getElementById('input-people').value = '2';
-                document.getElementById('input-people-custom').classList.add('hidden');
-                document.getElementById('input-people-custom').value = '';
-
                 document.getElementById('input-time').value =
                     "20:30";
 
@@ -2357,7 +2077,8 @@ function requestNotificationPermission() {
             const table =
                 document.getElementById('walkin-table').value.trim();
 
-            const rawPeople = getSelectedPeopleCount('walkin');
+            const rawPeople =
+                parseInt(document.getElementById('walkin-people').value);
 
             const chairs =
                 parseInt(document.getElementById('walkin-chairs').value) || 0;
@@ -2441,8 +2162,6 @@ function requestNotificationPermission() {
                 document.getElementById('walkin-form').reset();
 
                 document.getElementById('walkin-people').value = '2';
-                document.getElementById('walkin-people-custom').classList.add('hidden');
-                document.getElementById('walkin-people-custom').value = '';
 
                 document.getElementById('walkin-chairs').value = '0';
 
@@ -2764,15 +2483,8 @@ function requestNotificationPermission() {
                 );
 
 
-            if (netPeople <= 20) {
-                document.getElementById('edit-people').value = netPeople.toString();
-                document.getElementById('edit-people-custom').classList.add('hidden');
-                document.getElementById('edit-people-custom').value = '';
-            } else {
-                document.getElementById('edit-people').value = 'custom';
-                document.getElementById('edit-people-custom').classList.remove('hidden');
-                document.getElementById('edit-people-custom').value = netPeople.toString();
-            }
+            document.getElementById('edit-people').value =
+                netPeople > 20 ? '21' : netPeople.toString();
 
             document.getElementById('edit-chairs').value =
                 (b.chairs || 0).toString();
@@ -2818,7 +2530,8 @@ function requestNotificationPermission() {
             const joinedRaw =
                 document.getElementById('edit-joined').value.trim();
 
-            const rawPeople = getSelectedPeopleCount('edit');
+            const rawPeople =
+                parseInt(document.getElementById('edit-people').value);
 
             const chairs =
                 parseInt(document.getElementById('edit-chairs').value) || 0;
@@ -4384,20 +4097,7 @@ function requestNotificationPermission() {
         function closeServizioModal() {
             document.getElementById('servizio-modal').classList.add('hidden');
         }
-// Imposta la data odierna all'avvio e ricarica i tavoli della serata
-window.addEventListener('DOMContentLoaded', () => {
-    const dateInput = document.getElementById('current-date');
-    if (dateInput && !dateInput.value) {
-        const todayStr = new Date().toISOString().split('T')[0];
-        dateInput.value = todayStr;
-    }
-    // Chiama la funzione principale che carica i dati della serata se esiste
-    if (typeof loadDateData === "function") {
-        loadDateData();
-    } else if (typeof loadBookings === "function") {
-        loadBookings();
-    }
-});
+
     </script>
 
 </body>
