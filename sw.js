@@ -1,4 +1,3 @@
-// sw.js
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
@@ -13,31 +12,15 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Gestisce l'arrivo della notifica Push a schermo spento / background
 messaging.onBackgroundMessage((payload) => {
-    const notificationTitle = payload.notification ? payload.notification.title : "Locanda del Convento";
-    const notificationBody = payload.notification ? payload.notification.body : "Nuovo aggiornamento tavolo!";
-
+    console.log('[sw.js] Notifica in Background ricevuta: ', payload);
+    const notificationTitle = payload.notification.title;
     const notificationOptions = {
-        body: notificationBody,
+        body: payload.notification.body,
         icon: 'image.png',
         badge: 'image.png',
-        vibrate: [200, 100, 200],
-        tag: 'locanda-notification',
-        renotify: true
+        vibrate: [200, 100, 200]
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-self.addEventListener('notificationclick', (e) => {
-    e.notification.close();
-    e.waitUntil(
-        clients.matchAll({ type: 'window' }).then((clientList) => {
-            for (const client of clientList) {
-                if (client.url && 'focus' in client) return client.focus();
-            }
-            if (clients.openWindow) return clients.openWindow('/');
-        })
-    );
 });
