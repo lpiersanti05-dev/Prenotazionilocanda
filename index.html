@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -1589,7 +1590,7 @@
         // ⚠️ Incolla qui la tua VAPID Key:
         // Firebase Console > Impostazioni progetto > Cloud Messaging >
         // "Configurazione web" > Genera coppia di chiavi
-        const FCM_VAPID_KEY = "BASAAb497jFg1rRJLF4SNRgqkaq0V7xg-3myz5mKTzIYTOuIiaaoGmZO4yyZBxeTtlyDd4FGCYM6Bezu6aQehjg";
+        const FCM_VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
  
         function isIOSDevice() {
             return /iP(hone|ad|od)/.test(navigator.userAgent) ||
@@ -1621,6 +1622,7 @@
  
             if (!('Notification' in window) || !('serviceWorker' in navigator)) {
                 console.warn("Notifiche push non supportate su questo browser.");
+                alert("DEBUG: Notifiche non supportate su questo browser.");
                 return;
             }
  
@@ -1628,11 +1630,13 @@
                 // Safari NON consente le notifiche push a un sito aperto normalmente:
                 // serve che l'app sia stata aggiunta alla schermata Home (iOS 16.4+).
                 showIOSInstallBanner();
+                alert("DEBUG: app non rilevata come installata su Home (isRunningAsInstalledApp = false).");
                 return;
             }
  
             if (FCM_VAPID_KEY === "INCOLLA_QUI_LA_TUA_VAPID_KEY") {
                 console.warn("FCM_VAPID_KEY non configurata: le notifiche push non verranno attivate.");
+                alert("DEBUG: VAPID key non configurata.");
                 return;
             }
  
@@ -1640,6 +1644,7 @@
                 swRegistration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
             } catch (e) {
                 console.warn("Service Worker FCM non registrato:", e);
+                alert("DEBUG: errore registrazione Service Worker: " + e.message);
                 return;
             }
  
@@ -1647,6 +1652,7 @@
                 const permission = await Notification.requestPermission();
                 if (permission !== 'granted') {
                     console.warn("Permesso notifiche negato dall'utente.");
+                    alert("DEBUG: permesso notifiche NON concesso (stato: " + permission + ").");
                     return;
                 }
  
@@ -1656,6 +1662,10 @@
                     vapidKey: FCM_VAPID_KEY,
                     serviceWorkerRegistration: swRegistration
                 });
+ 
+                if (!token) {
+                    alert("DEBUG: getToken() ha restituito vuoto/nullo.");
+                }
  
                 if (token) {
  
@@ -1679,6 +1689,8 @@
                     }, { merge: true });
  
                     localStorage.setItem('fcm_token', token);
+ 
+                    alert("DEBUG: token salvato con successo: " + token.substring(0, 20) + "...");
                 }
  
                 // Quando l'app è APERTA e in primo piano, FCM non mostra la notifica
@@ -1693,6 +1705,7 @@
  
             } catch (e) {
                 console.warn("Errore configurazione notifiche push (FCM):", e);
+                alert("DEBUG: errore configurazione FCM: " + e.message);
             }
  
         }
