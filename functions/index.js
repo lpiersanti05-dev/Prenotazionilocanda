@@ -18,15 +18,47 @@ async function pushToAllDevices(title, body, tag, type, table) {
     // Ogni documento è chiavato per deviceId stabile; il token FCM vero
     // sta nel campo "token" (compatibilità: se un vecchio documento non
     // avesse il campo, usiamo l'ID stesso come fallback).
-    const devices = tokensSnap.docs
-        .map((d) => ({ docId: d.id, token: d.data().token || d.id }))
+    const allDevices = tokensSnap.docs
+        .map((d) => ({ docId: d.id, token: d.data().token || d.id, updatedAt: d.data().updatedAt }))
         .filter((d) => !!d.token);
 
-    if (devices.length === 0) {
+    if (allDevices.length === 0) {
         console.log("Nessun dispositivo registrato per le notifiche.");
         return;
     }
 
+    // Deduplica per TOKEN (non per docId): se lo stesso token FCM è salvato
+    // sotto più deviceId diversi (es. dopo un reset di localStorage che ha
+    // rigenerato il deviceId ma non il token), inviare a entrambi i documenti
+    // manderebbe due notifiche identiche allo stesso telefono. Teniamo solo
+    // il documento più recente per ciascun token e segnamo gli altri da eliminare.
+    const byToken = new Map();
+    const staleDocIds = [];
+
+    allDevices.forEach((d) => {
+        const existing = byToken.get(d.token);
+        if (!existing) {
+            byToken.set(d.token, d);
+        } else {
+            const existingTime = existing.updatedAt && existing.updatedAt.seconds ? existing.updatedAt.seconds : 0;
+            const currentTime = d.updatedAt && d.updatedAt.seconds ? d.updatedAt.seconds : 0;
+            if (currentTime > existingTime) {
+                staleDocIds.push(existing.docId);
+                byToken.set(d.token, d);
+            } else {
+                staleDocIds.push(d.docId);
+            }
+        }
+    });
+
+    if (staleDocIds.length > 0) {
+        await Promise.all(
+            staleDocIds.map((id) => db.collection("fcm_tokens").doc(id).delete())
+        );
+        console.log(`Rimossi ${staleDocIds.length} documenti duplicati (stesso token).`);
+    }
+
+    const devices = Array.from(byToken.values());
     const tokens = devices.map((d) => d.token);
 
     const message = {
