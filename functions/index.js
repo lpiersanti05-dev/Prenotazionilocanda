@@ -1,35 +1,114 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-admin.initializeApp();
 
-exports.notifyNewBooking = functions.firestore
-    .document('bookings/{bookingId}')
-    .onCreate(async (snap, context) => {
-        const newBooking = snap.data();
-        
-        // Creiamo la notifica chad
-        const payload = {
-            notification: {
-                title: `🪑 Nuovo Tavolo: ${newBooking.table}`,
-                body: `${newBooking.name} (${newBooking.people} pax) - Orario: ${newBooking.time}`
+const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
+ 
+initializeApp();
+const db = getFirestore();
+const messaging = getMessaging();
+ 
+/**
+ * Invia un push a tutti i token registrati e rimuove dal database
+ * quelli non più validi (app disinstallata, permesso revocato, ecc.).
+ */
+async function pushToAllDevices(title, body, tag, type, table) {
+ 
+    const tokensSnap = await db.collection("fcmTokens").get();
+    const tokens = tokensSnap.docs.map((d) => d.id).filter(Boolean);
+ 
+    if (tokens.length === 0) {
+        console.log("Nessun dispositivo registrato per le notifiche.");
+        return;
+    }
+ 
+    const message = {
+        notification: { title, body },
+        data: {
+            tag: String(tag || ""),
+            type: String(type || ""),
+            table: String(table || "")
+        },
+        tokens
+    };
+ 
+    const response = await messaging.sendEachForMulticast(message);
+ 
+    const invalidTokens = [];
+    response.responses.forEach((r, idx) => {
+        if (!r.success) {
+            const code = r.error && r.error.code;
+            if (
+                code === "messaging/registration-token-not-registered" ||
+                code === "messaging/invalid-registration-token"
+            ) {
+                invalidTokens.push(tokens[idx]);
             }
-        };
-
-        // Andiamo a pescare tutti i token VIP dei camerieri
-        const tokensSnap = await admin.firestore().collection('fcm_tokens').get();
-        const tokens = tokensSnap.docs.map(doc => doc.id);
-
-        if (tokens.length === 0) {
-            console.log("Nessun cameriere registrato, non invio niente.");
-            return null;
         }
-
-        // Spariamo la notifica a tutti
-        const response = await admin.messaging().sendEachForMulticast({
-            tokens: tokens,
-            notification: payload.notification
-        });
-
-        console.log(`Notifiche inviate: ${response.successCount} andate a buon fine, ${response.failureCount} fallite.`);
-        return null;
     });
+ 
+    if (invalidTokens.length > 0) {
+        await Promise.all(
+            invalidTokens.map((t) => db.collection("fcmTokens").doc(t).delete())
+        );
+        console.log(`Rimossi ${invalidTokens.length} token non più validi.`);
+    }
+ 
+    console.log(`Push inviato a ${tokens.length - invalidTokens.length} dispositivi: ${title}`);
+}
+ 
+function buildArrivedMessage(booking) {
+    return {
+        title: "🪑 Tavolo Arrivato",
+        body: `Tavolo ${booking.table} - ${booking.name || "Cliente"} (${booking.people || 0} persone)`,
+        tag: `arrived-${booking.table}-${booking.date}`,
+        type: "arrived"
+    };
+}
+ 
+function buildReadyMessage(booking) {
+    return {
+        title: "🛎️ Pronto per Ordinare",
+        body: `Tavolo ${booking.table} - ${booking.name || "Cliente"} è pronto per ordinare!`,
+        tag: `ready-${booking.table}-${booking.date}`,
+        type: "ready"
+    };
+}
+ 
+// Caso 1: prenotazione esistente che viene aggiornata
+// (es. tasto "Segnala come arrivato" o "Avvisa" pronto ordinare).
+exports.onBookingUpdate = onDocumentUpdated("bookings/{bookingId}", async (event) => {
+ 
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+ 
+    if (!before || !after) return;
+ 
+    const becameArrived = after.arrived && !before.arrived;
+    const becameReady = after.readyToOrder && !before.readyToOrder;
+ 
+    if (becameArrived) {
+        const m = buildArrivedMessage(after);
+        await pushToAllDevices(m.title, m.body, m.tag, m.type, after.table);
+    }
+ 
+    if (becameReady) {
+        const m = buildReadyMessage(after);
+        await pushToAllDevices(m.title, m.body, m.tag, m.type, after.table);
+    }
+ 
+});
+ 
+// Caso 2: walk-in appena creato, che nasce già con arrived = true
+// (il tavolo non prenotato entra ed è "arrivato" fin da subito).
+exports.onBookingCreate = onDocumentCreated("bookings/{bookingId}", async (event) => {
+ 
+    const data = event.data.data();
+ 
+    if (!data || !data.arrived) return;
+ 
+    const m = buildArrivedMessage(data);
+    await pushToAllDevices(m.title, m.body, m.tag, m.type, data.table);
+ 
+});
+ 
