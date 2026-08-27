@@ -1,27 +1,22 @@
-
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
- 
+
 initializeApp();
 const db = getFirestore();
 const messaging = getMessaging();
- 
-/**
- * Invia un push a tutti i token registrati e rimuove dal database
- * quelli non più validi (app disinstallata, permesso revocato, ecc.).
- */
+
 async function pushToAllDevices(title, body, tag, type, table) {
- 
+
     const tokensSnap = await db.collection("fcmTokens").get();
     const tokens = tokensSnap.docs.map((d) => d.id).filter(Boolean);
- 
+
     if (tokens.length === 0) {
         console.log("Nessun dispositivo registrato per le notifiche.");
         return;
     }
- 
+
     const message = {
         notification: { title, body },
         data: {
@@ -31,9 +26,9 @@ async function pushToAllDevices(title, body, tag, type, table) {
         },
         tokens
     };
- 
+
     const response = await messaging.sendEachForMulticast(message);
- 
+
     const invalidTokens = [];
     response.responses.forEach((r, idx) => {
         if (!r.success) {
@@ -46,17 +41,17 @@ async function pushToAllDevices(title, body, tag, type, table) {
             }
         }
     });
- 
+
     if (invalidTokens.length > 0) {
         await Promise.all(
             invalidTokens.map((t) => db.collection("fcmTokens").doc(t).delete())
         );
         console.log(`Rimossi ${invalidTokens.length} token non più validi.`);
     }
- 
+
     console.log(`Push inviato a ${tokens.length - invalidTokens.length} dispositivi: ${title}`);
 }
- 
+
 function buildArrivedMessage(booking) {
     return {
         title: "🪑 Tavolo Arrivato",
@@ -65,7 +60,7 @@ function buildArrivedMessage(booking) {
         type: "arrived"
     };
 }
- 
+
 function buildReadyMessage(booking) {
     return {
         title: "🛎️ Pronto per Ordinare",
@@ -74,41 +69,36 @@ function buildReadyMessage(booking) {
         type: "ready"
     };
 }
- 
-// Caso 1: prenotazione esistente che viene aggiornata
-// (es. tasto "Segnala come arrivato" o "Avvisa" pronto ordinare).
+
 exports.onBookingUpdate = onDocumentUpdated("bookings/{bookingId}", async (event) => {
- 
+
     const before = event.data.before.data();
     const after = event.data.after.data();
- 
+
     if (!before || !after) return;
- 
+
     const becameArrived = after.arrived && !before.arrived;
     const becameReady = after.readyToOrder && !before.readyToOrder;
- 
+
     if (becameArrived) {
         const m = buildArrivedMessage(after);
         await pushToAllDevices(m.title, m.body, m.tag, m.type, after.table);
     }
- 
+
     if (becameReady) {
         const m = buildReadyMessage(after);
         await pushToAllDevices(m.title, m.body, m.tag, m.type, after.table);
     }
- 
+
 });
- 
-// Caso 2: walk-in appena creato, che nasce già con arrived = true
-// (il tavolo non prenotato entra ed è "arrivato" fin da subito).
+
 exports.onBookingCreate = onDocumentCreated("bookings/{bookingId}", async (event) => {
- 
+
     const data = event.data.data();
- 
+
     if (!data || !data.arrived) return;
- 
+
     const m = buildArrivedMessage(data);
     await pushToAllDevices(m.title, m.body, m.tag, m.type, data.table);
- 
+
 });
- 
