@@ -7,15 +7,27 @@ initializeApp();
 const db = getFirestore();
 const messaging = getMessaging();
 
+/**
+ * Invia un push a tutti i token registrati e rimuove dal database
+ * quelli non più validi (app disinstallata, permesso revocato, ecc.).
+ */
 async function pushToAllDevices(title, body, tag, type, table) {
 
-    const tokensSnap = await db.collection("fcmTokens").get();
-    const tokens = tokensSnap.docs.map((d) => d.id).filter(Boolean);
+    const tokensSnap = await db.collection("fcm_tokens").get();
 
-    if (tokens.length === 0) {
+    // Ogni documento è chiavato per deviceId stabile; il token FCM vero
+    // sta nel campo "token" (compatibilità: se un vecchio documento non
+    // avesse il campo, usiamo l'ID stesso come fallback).
+    const devices = tokensSnap.docs
+        .map((d) => ({ docId: d.id, token: d.data().token || d.id }))
+        .filter((d) => !!d.token);
+
+    if (devices.length === 0) {
         console.log("Nessun dispositivo registrato per le notifiche.");
         return;
     }
+
+    const tokens = devices.map((d) => d.token);
 
     const message = {
         notification: { title, body },
@@ -29,7 +41,7 @@ async function pushToAllDevices(title, body, tag, type, table) {
 
     const response = await messaging.sendEachForMulticast(message);
 
-    const invalidTokens = [];
+    const invalidDocIds = [];
     response.responses.forEach((r, idx) => {
         if (!r.success) {
             const code = r.error && r.error.code;
@@ -37,19 +49,19 @@ async function pushToAllDevices(title, body, tag, type, table) {
                 code === "messaging/registration-token-not-registered" ||
                 code === "messaging/invalid-registration-token"
             ) {
-                invalidTokens.push(tokens[idx]);
+                invalidDocIds.push(devices[idx].docId);
             }
         }
     });
 
-    if (invalidTokens.length > 0) {
+    if (invalidDocIds.length > 0) {
         await Promise.all(
-            invalidTokens.map((t) => db.collection("fcmTokens").doc(t).delete())
+            invalidDocIds.map((id) => db.collection("fcm_tokens").doc(id).delete())
         );
-        console.log(`Rimossi ${invalidTokens.length} token non più validi.`);
+        console.log(`Rimossi ${invalidDocIds.length} dispositivi non più validi.`);
     }
 
-    console.log(`Push inviato a ${tokens.length - invalidTokens.length} dispositivi: ${title}`);
+    console.log(`Push inviato a ${tokens.length - invalidDocIds.length} dispositivi: ${title}`);
 }
 
 function buildArrivedMessage(booking) {
@@ -70,6 +82,8 @@ function buildReadyMessage(booking) {
     };
 }
 
+// Caso 1: prenotazione esistente che viene aggiornata
+// (es. tasto "Segnala come arrivato" o "Avvisa" pronto ordinare).
 exports.onBookingUpdate = onDocumentUpdated("bookings/{bookingId}", async (event) => {
 
     const before = event.data.before.data();
@@ -92,6 +106,8 @@ exports.onBookingUpdate = onDocumentUpdated("bookings/{bookingId}", async (event
 
 });
 
+// Caso 2: walk-in appena creato, che nasce già con arrived = true
+// (il tavolo non prenotato entra ed è "arrivato" fin da subito).
 exports.onBookingCreate = onDocumentCreated("bookings/{bookingId}", async (event) => {
 
     const data = event.data.data();
