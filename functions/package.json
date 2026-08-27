@@ -1,20 +1,14 @@
+
 {
   "name": "functions",
-  "scripts": {
-    "lint": "eslint .",
-    "serve": "firebase serve --only functions",
-    "shell": "firebase functions:shell",
-    "start": "firebase shell",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
-  },
+  "description": "Cloud Functions - Notifiche push Locanda del Convento",
   "engines": {
     "node": "20"
   },
   "main": "index.js",
   "dependencies": {
-    "firebase-admin": "^11.8.0",
-    "firebase-functions": "^4.3.1"
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^5.0.0"
   },
   "private": true
 }
