@@ -1,59 +1,35 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-
 admin.initializeApp();
 
-exports.sendTableNotification = functions.firestore
-  .document("bookings/{bookingId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
+exports.notifyNewBooking = functions.firestore
+    .document('bookings/{bookingId}')
+    .onCreate(async (snap, context) => {
+        const newBooking = snap.data();
+        
+        // Creiamo la notifica chad
+        const payload = {
+            notification: {
+                title: `🪑 Nuovo Tavolo: ${newBooking.table}`,
+                body: `${newBooking.name} (${newBooking.people} pax) - Orario: ${newBooking.time}`
+            }
+        };
 
-    let title = "";
-    let body = "";
+        // Andiamo a pescare tutti i token VIP dei camerieri
+        const tokensSnap = await admin.firestore().collection('fcm_tokens').get();
+        const tokens = tokensSnap.docs.map(doc => doc.id);
 
-    // Notifica Tavolo Arrivato
-    if (after.arrived && !before.arrived) {
-      title = "📍 Tavolo Arrivato!";
-      body = `Tavolo ${after.table} (${after.name || "Cliente"}) è arrivato in sala!`;
-    } 
-    // Notifica Pronto per Ordinare
-    else if (after.readyToOrder && !before.readyToOrder) {
-      title = "🛎️ Pronto per Ordinare!";
-      body = `Tavolo ${after.table} (${after.name || "Cliente"}) vuole ordinare!`;
-    } 
-    // Notifica Priorità Assegnata
-    else if (after.priority && !before.priority) {
-      title = "⭐ Priorità Alta!";
-      body = `Tavolo ${after.table} (${after.name || "Cliente"}) ha priorità in cucina/sala!`;
-    } 
-    else {
-      return null;
-    }
+        if (tokens.length === 0) {
+            console.log("Nessun cameriere registrato, non invio niente.");
+            return null;
+        }
 
-    // Recupera tutti i token FCM registrati nell'app
-    const tokensSnapshot = await admin.firestore().collection("fcmTokens").get();
-    const tokens = tokensSnapshot.docs.map((doc) => doc.id);
+        // Spariamo la notifica a tutti
+        const response = await admin.messaging().sendEachForMulticast({
+            tokens: tokens,
+            notification: payload.notification
+        });
 
-    if (tokens.length === 0) {
-      console.log("Nessun dispositivo registrato per le notifiche.");
-      return null;
-    }
-
-    const payload = {
-      notification: {
-        title: title,
-        body: body,
-      },
-      tokens: tokens,
-    };
-
-    try {
-      const response = await admin.messaging().sendMulticast(payload);
-      console.log("Notifiche inviate con successo:", response.successCount);
-      return response;
-    } catch (error) {
-      console.error("Errore invio notifica push:", error);
-      return null;
-    }
-  });
+        console.log(`Notifiche inviate: ${response.successCount} andate a buon fine, ${response.failureCount} fallite.`);
+        return null;
+    });
