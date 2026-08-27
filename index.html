@@ -1600,7 +1600,7 @@
         // ⚠️ Incolla qui la tua VAPID Key:
         // Firebase Console > Impostazioni progetto > Cloud Messaging >
         // "Configurazione web" > Genera coppia di chiavi
-        const FCM_VAPID_KEY = "BASAAb497jFg1rRJLF4SNRgqkaq0V7xg-3myz5mKTzIYTOuIiaaoGmZO4yyZBxeTtlyDd4FGCYM6Bezu6aQehjg";
+        const FCM_VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
 
         function isIOSDevice() {
             return /iP(hone|ad|od)/.test(navigator.userAgent) ||
@@ -1679,6 +1679,27 @@
                 if (!silent) showError("Configurazione notifiche incompleta (VAPID key mancante). Contatta chi gestisce l'app.");
                 updateNotifButtonIcon();
                 return;
+            }
+
+            try {
+                // Elimina eventuali Service Worker "zombie" rimasti registrati da
+                // versioni precedenti dell'app (es. il vecchio sw.js pre-FCM).
+                // Se restano attivi in parallelo, generano una SECONDA
+                // sottoscrizione push, realmente diversa dalla prima, per lo
+                // stesso telefono: la deduplica per token non basta a fermarla,
+                // va eliminata alla radice disattivando il Service Worker vecchio.
+                const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of existingRegistrations) {
+                    if (!reg.active || !reg.active.scriptURL.includes('firebase-messaging-sw.js')) {
+                        try {
+                            const sub = await reg.pushManager.getSubscription();
+                            if (sub) await sub.unsubscribe();
+                        } catch (e) { /* ignora */ }
+                        await reg.unregister();
+                    }
+                }
+            } catch (e) {
+                console.warn("Pulizia Service Worker precedenti fallita (non bloccante):", e);
             }
 
             try {
