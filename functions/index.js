@@ -9,7 +9,7 @@ const messaging = getMessaging();
 
 async function pushToAllDevices(title, body, tag, type, table) {
 
-    const tokensSnap = await db.collection("fcmTokens").get();
+    const tokensSnap = await db.collection("fcm_tokens").get();
     const tokens = tokensSnap.docs.map((d) => d.id).filter(Boolean);
 
     if (tokens.length === 0) {
@@ -44,7 +44,7 @@ async function pushToAllDevices(title, body, tag, type, table) {
 
     if (invalidTokens.length > 0) {
         await Promise.all(
-            invalidTokens.map((t) => db.collection("fcmTokens").doc(t).delete())
+            invalidTokens.map((t) => db.collection("fcm_tokens").doc(t).delete())
         );
         console.log(`Rimossi ${invalidTokens.length} token non più validi.`);
     }
