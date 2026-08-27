@@ -1612,6 +1612,20 @@
                 window.matchMedia('(display-mode: standalone)').matches;
         }
 
+        // ID univoco e stabile per questo browser/dispositivo, generato una sola
+        // volta e riusato per sempre. Usato come chiave del documento in
+        // fcm_tokens, cosicché ogni dispositivo abbia sempre un solo documento
+        // (aggiornato), invece di accumularne uno nuovo ogni volta che il token
+        // FCM cambia.
+        function getOrCreateDeviceId() {
+            let id = localStorage.getItem('device_id');
+            if (!id) {
+                id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+                localStorage.setItem('device_id', id);
+            }
+            return id;
+        }
+
         function showIOSInstallBanner() {
             if (document.getElementById('ios-install-banner')) return;
 
@@ -1694,22 +1708,15 @@
 
                 if (token) {
 
-                    const previousToken = localStorage.getItem('fcm_token');
+                    // ID stabile per questo dispositivo/browser: a differenza del
+                    // token FCM (che può cambiare nel tempo), questo non cambia mai,
+                    // quindi il documento su Firestore viene sempre AGGIORNATO,
+                    // mai duplicato, anche se il token ruota o localStorage si svuota.
+                    const deviceId = getOrCreateDeviceId();
 
-                    // Se è cambiato rispetto all'ultima volta, elimina il vecchio
-                    // token registrato da questo stesso dispositivo, altrimenti
-                    // resterebbe in Firestore duplicato e riceveresti due notifiche.
-                    if (previousToken && previousToken !== token) {
-                        try {
-                            await db.collection("fcm_tokens").doc(previousToken).delete();
-                        } catch (e) {
-                            console.warn("Impossibile rimuovere il vecchio token:", e);
-                        }
-                    }
-
-                    await db.collection("fcm_tokens").doc(token).set({
+                    await db.collection("fcm_tokens").doc(deviceId).set({
+                        token: token,
                         device: navigator.userAgent,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
 
