@@ -3,6 +3,19 @@
 // app.html/index.html), non in una sottocartella, altrimenti il browser non
 // riesce a registrarlo con lo scope corretto per ricevere i push.
 
+const SW_VERSION = 'v3-dedup';
+console.log('[firebase-messaging-sw.js] versione caricata:', SW_VERSION);
+
+// Forza l'attivazione immediata di questa versione, senza aspettare che
+// TUTTE le schede/istanze dell'app vengano chiuse manualmente — altrimenti
+// un aggiornamento del file può restare "in coda" per ore, facendo credere
+// che il fix non funzioni quando in realtà il browser sta ancora eseguendo
+// la versione precedente.
+self.skipWaiting();
+self.addEventListener('activate', (event) => {
+    event.waitUntil(clients.claim());
+});
+
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
