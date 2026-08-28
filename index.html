@@ -1595,12 +1595,13 @@
         // ---------------------------------------------------------
 
         let swRegistration = null;
+        let staleSWCleanupDone = false;
         let fcmMessaging = null;
 
         // ⚠️ Incolla qui la tua VAPID Key:
         // Firebase Console > Impostazioni progetto > Cloud Messaging >
         // "Configurazione web" > Genera coppia di chiavi
-        const FCM_VAPID_KEY = "BASAAb497jFg1rRJLF4SNRgqkaq0V7xg-3myz5mKTzIYTOuIiaaoGmZO4yyZBxeTtlyDd4FGCYM6Bezu6aQehjg";
+        const FCM_VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
 
         function isIOSDevice() {
             return /iP(hone|ad|od)/.test(navigator.userAgent) ||
@@ -1688,14 +1689,28 @@
                 // sottoscrizione push, realmente diversa dalla prima, per lo
                 // stesso telefono: la deduplica per token non basta a fermarla,
                 // va eliminata alla radice disattivando il Service Worker vecchio.
-                const existingRegistrations = await navigator.serviceWorker.getRegistrations();
-                for (const reg of existingRegistrations) {
-                    if (!reg.active || !reg.active.scriptURL.includes('firebase-messaging-sw.js')) {
-                        try {
-                            const sub = await reg.pushManager.getSubscription();
-                            if (sub) await sub.unsubscribe();
-                        } catch (e) { /* ignora */ }
-                        await reg.unregister();
+                // Eseguito una sola volta per caricamento pagina, per non entrare
+                // in conflitto con una registrazione del SW corretto in corso.
+                if (!staleSWCleanupDone) {
+                    staleSWCleanupDone = true;
+
+                    const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+                    for (const reg of existingRegistrations) {
+                        // Usa qualunque worker sia presente (attivo, in installazione
+                        // o in attesa): controllare SOLO "active" causava un bug per
+                        // cui il nostro stesso Service Worker corretto, se ancora in
+                        // fase di installazione, veniva scambiato per "vecchio" e
+                        // disattivato per errore, bloccando le notifiche.
+                        const worker = reg.active || reg.installing || reg.waiting;
+                        const isCorrectSW = worker && worker.scriptURL && worker.scriptURL.includes('firebase-messaging-sw.js');
+
+                        if (!isCorrectSW) {
+                            try {
+                                const sub = await reg.pushManager.getSubscription();
+                                if (sub) await sub.unsubscribe();
+                            } catch (e) { /* ignora */ }
+                            await reg.unregister();
+                        }
                     }
                 }
             } catch (e) {
