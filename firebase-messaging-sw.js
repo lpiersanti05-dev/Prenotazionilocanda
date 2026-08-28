@@ -116,7 +116,13 @@ messaging.onBackgroundMessage(async (payload) => {
         icon: 'image.png',
         badge: 'image.png',
         tag: data.tag || undefined,
-        renotify: true,
+        // renotify: true rimosso deliberatamente. Combinato con "tag", su
+        // iOS/Safari sembra causare una VERA duplicazione della voce nel
+        // Centro Notifiche (due entry identiche) invece di sostituire
+        // pulitamente quella precedente con lo stesso tag — anche quando
+        // showNotification() viene chiamata una sola volta, come confermato
+        // dai log diagnostici. Senza renotify, la seconda notifica con lo
+        // stesso tag sostituisce semplicemente la prima, senza duplicarla.
         vibrate: [120, 60, 120],
         data
     };
