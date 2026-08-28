@@ -1601,7 +1601,7 @@
         // ⚠️ Incolla qui la tua VAPID Key:
         // Firebase Console > Impostazioni progetto > Cloud Messaging >
         // "Configurazione web" > Genera coppia di chiavi
-        const FCM_VAPID_KEY = "BASAAb497jFg1rRJLF4SNRgqkaq0V7xg-3myz5mKTzIYTOuIiaaoGmZO4yyZBxeTtlyDd4FGCYM6Bezu6aQehjg";
+        const FCM_VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
 
         function isIOSDevice() {
             return /iP(hone|ad|od)/.test(navigator.userAgent) ||
@@ -1758,7 +1758,22 @@
 
                     localStorage.setItem('fcm_token', token);
 
-                    if (!silent) showToast("🔔 Notifiche attivate su questo dispositivo!");
+                    if (!silent) {
+                        // La scrittura sopra può risultare "riuscita" anche solo
+                        // localmente (cache offline) senza essere mai arrivata al
+                        // server. Verifichiamo leggendo DAL SERVER per dare un
+                        // responso vero, non ottimistico.
+                        try {
+                            const serverCheck = await db.collection("fcm_tokens").doc(deviceId).get({ source: 'server' });
+                            if (serverCheck.exists) {
+                                showToast("🔔 Notifiche attivate e confermate sul server!");
+                            } else {
+                                showError("Il token è stato creato sul dispositivo ma NON è ancora arrivato al server (verificato in tempo reale). Controlla la connessione internet e riprova.");
+                            }
+                        } catch (verifyErr) {
+                            showError("Impossibile verificare col server se le notifiche sono attive: " + verifyErr.message + ". Probabile problema di connessione.");
+                        }
+                    }
                 } else if (!silent) {
                     showError("Non è stato possibile ottenere il token per le notifiche. Riprova tra qualche istante.");
                 }
