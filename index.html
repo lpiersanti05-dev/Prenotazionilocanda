@@ -1796,10 +1796,10 @@
                 // di sistema: mostriamo invece il toast (comportamento voluto, per
                 // non disturbare chi ha già l'app sotto gli occhi).
                 fcmMessaging.onMessage((payload) => {
-                    const n = payload.notification || {};
-                    const type = payload.data && payload.data.type === 'ready' ? 'priority' : 'success';
+                    const d = payload.data || {};
+                    const type = d.type === 'ready' ? 'priority' : 'success';
                     triggerHaptic(40);
-                    showToast(`${n.title ? n.title + ": " : ""}${n.body || ""}`, type);
+                    showToast(`${d.title ? d.title + ": " : ""}${d.body || ""}`, type);
                 });
 
             } catch (e) {
