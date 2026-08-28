@@ -1675,6 +1675,20 @@
                 return;
             }
 
+            if (silent && Notification.permission === 'default') {
+                // FONDAMENTALE: mai chiamare requestPermission() senza un gesto
+                // reale dell'utente (click/tap). Se lo si fa comunque, Safari
+                // non si limita a ignorare la richiesta: la segna come "denied"
+                // per sempre, bloccando ogni futuro tentativo anche con un
+                // click vero. Questo era il bug di fondo dietro tutti i lockout
+                // visti su iPhone (e ora anche su Mac): l'avvio automatico e
+                // silenzioso bruciava il permesso prima ancora che l'utente
+                // potesse toccare la campanella. Qui ci fermiamo e aspettiamo
+                // il tocco esplicito sul tasto 🔔.
+                updateNotifButtonIcon();
+                return;
+            }
+
             if (FCM_VAPID_KEY === "INCOLLA_QUI_LA_TUA_VAPID_KEY") {
                 console.warn("FCM_VAPID_KEY non configurata: le notifiche push non verranno attivate.");
                 if (!silent) showError("Configurazione notifiche incompleta (VAPID key mancante). Contatta chi gestisce l'app.");
