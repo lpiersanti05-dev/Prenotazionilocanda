@@ -3,7 +3,7 @@
 // app.html/index.html), non in una sottocartella, altrimenti il browser non
 // riesce a registrarlo con lo scope corretto per ricevere i push.
 
-const SW_VERSION = 'v4-raw-push';
+const SW_VERSION = 'v3-dedup';
 console.log('[firebase-messaging-sw.js] versione caricata:', SW_VERSION);
 
 // Forza l'attivazione immediata di questa versione, senza aspettare che
@@ -103,8 +103,14 @@ async function handlePush(event) {
         raw = event.data ? event.data.json() : {};
     } catch (e) {
         console.warn('Payload push non in formato JSON atteso:', e);
+        debugLog('payload_non_json', '');
         return;
     }
+
+    // DIAGNOSTICA TEMPORANEA: scrive la struttura grezza esatta del payload
+    // su Firestore, per capire dove si trovano davvero titolo/corpo nel
+    // messaggio nativo — da rimuovere una volta risolto.
+    debugLog('payload_grezzo', JSON.stringify(raw).slice(0, 900));
 
     // A seconda di come FCM serializza il messaggio "solo data" sul canale
     // push nativo, i nostri campi possono comparire come oggetto piatto o
