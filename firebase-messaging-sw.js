@@ -93,10 +93,12 @@ async function markAsShown(tag) {
 // (scheda in background, app chiusa, telefono bloccato ma app installata).
 messaging.onBackgroundMessage(async (payload) => {
 
-    const notif = payload.notification || {};
+    // Il payload ora è SOLO "data" (niente più campo "notification" di
+    // primo livello): evita che il browser/SDK mostri automaticamente una
+    // sua notifica interna in aggiunta a quella che mostriamo noi qui.
     const data = payload.data || {};
 
-    const title = notif.title || "Locanda del Convento";
+    const title = data.title || "Locanda del Convento";
 
     debugLog('push_ricevuto', data.tag);
 
@@ -112,17 +114,10 @@ messaging.onBackgroundMessage(async (payload) => {
     await markAsShown(data.tag);
 
     const options = {
-        body: notif.body || "",
+        body: data.body || "",
         icon: 'image.png',
         badge: 'image.png',
-        // "tag" rimosso come ultimo esperimento: abbiamo dimostrato con
-        // certezza (log diagnostici + analisi frame-by-frame di una
-        // registrazione video) che showNotification() viene chiamata UNA
-        // SOLA volta dal nostro codice, eppure iOS archivia comunque due
-        // voci identiche nel Centro Notifiche. È un comportamento del
-        // sistema operativo, non del nostro codice. Proviamo a vedere se
-        // togliere "tag" (l'altra area con incoerenze note su WebKit,
-        // oltre a renotify già rimosso) cambia qualcosa.
+        tag: data.tag || undefined,
         vibrate: [120, 60, 120],
         data
     };
