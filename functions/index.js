@@ -62,8 +62,16 @@ async function pushToAllDevices(title, body, tag, type, table) {
     const tokens = devices.map((d) => d.token);
 
     const message = {
-        notification: { title, body },
+        // SOLO "data", niente campo "notification": se il payload FCM
+        // contiene un campo "notification", il browser può mostrare una
+        // notifica automaticamente per conto proprio, in aggiunta a quella
+        // che mostriamo esplicitamente noi nel Service Worker — causando
+        // un doppione che i nostri log non possono vedere, perché avviene
+        // prima e fuori dal nostro codice. Con solo "data", l'unica
+        // notifica visualizzata è quella che generiamo noi manualmente.
         data: {
+            title: String(title || ""),
+            body: String(body || ""),
             tag: String(tag || ""),
             type: String(type || ""),
             table: String(table || "")
