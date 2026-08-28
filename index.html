@@ -1815,12 +1815,27 @@
         }
 
         // Click sul tasto campanella: tentativo esplicito, con feedback chiaro.
-        function handleNotificationButtonClick() {
+        async function handleNotificationButtonClick() {
             triggerHaptic(20);
 
             if (Notification.permission === 'granted' && localStorage.getItem('fcm_token')) {
-                showToast("🔔 Le notifiche sono già attive su questo dispositivo.");
-                return;
+                // Non fidarti ciecamente della cache locale: verifica DAVVERO
+                // sul server. Una PWA installata su Home (iOS) ha uno storage
+                // separato da Safari, quindi "Cancella dati siti" di Safari non
+                // lo tocca — localStorage può restare "vecchio" per giorni anche
+                // se il documento non è mai realmente arrivato su Firestore.
+                const deviceId = getOrCreateDeviceId();
+                try {
+                    const serverCheck = await db.collection("fcm_tokens").doc(deviceId).get({ source: 'server' });
+                    if (serverCheck.exists) {
+                        showToast("🔔 Le notifiche sono già attive su questo dispositivo (confermato dal server).");
+                        return;
+                    } else {
+                        console.warn("Token presente in locale ma NON trovato sul server: ri-registro.");
+                    }
+                } catch (e) {
+                    console.warn("Verifica server fallita, procedo a ri-registrare:", e);
+                }
             }
 
             initNotifications(false);
