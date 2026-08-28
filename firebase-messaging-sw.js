@@ -3,7 +3,7 @@
 // app.html/index.html), non in una sottocartella, altrimenti il browser non
 // riesce a registrarlo con lo scope corretto per ricevere i push.
 
-const SW_VERSION = 'v3-dedup';
+const SW_VERSION = 'v4-raw-push';
 console.log('[firebase-messaging-sw.js] versione caricata:', SW_VERSION);
 
 // Forza l'attivazione immediata di questa versione, senza aspettare che
@@ -16,20 +16,12 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(clients.claim());
 });
 
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
-
-// Stessa configurazione usata in app.html
-firebase.initializeApp({
-    apiKey: "AIzaSyAwGEErUuII0YGO9b59xmhfpog_52a26MI",
-    authDomain: "prenotazionilocanda-7808c.firebaseapp.com",
-    projectId: "prenotazionilocanda-7808c",
-    storageBucket: "prenotazionilocanda-7808c.firebasestorage.app",
-    messagingSenderId: "407224446329",
-    appId: "1:407224446329:web:e213fbaf5aaef702af53a8"
-});
-
-const messaging = firebase.messaging();
+// NOTA: non importiamo più firebase-app-compat.js / firebase-messaging-compat.js
+// qui. Non servono: la registrazione del token avviene dal thread principale
+// (app.html) passando semplicemente questo Service Worker come
+// "serviceWorkerRegistration" — non serve che anche il Service Worker stesso
+// inizializzi l'SDK Firebase. Tenerlo fuori elimina ogni possibilità che sia
+// l'SDK, internamente, a intercettare l'evento push prima del nostro codice.
 
 // Log diagnostico scritto direttamente su Firestore via REST (niente SDK
 // completo necessario in questo file), per verificare con certezza quante
@@ -91,12 +83,33 @@ async function markAsShown(tag) {
 
 // Gestisce i messaggi push ricevuti quando l'app NON è in primo piano
 // (scheda in background, app chiusa, telefono bloccato ma app installata).
-messaging.onBackgroundMessage(async (payload) => {
+//
+// NOTA: qui NON usiamo più messaging.onBackgroundMessage() dell'SDK
+// Firebase. Gestiamo l'evento "push" nativo del browser a mano, per
+// escludere del tutto la possibilità che sia l'SDK stesso, internamente,
+// a mostrare una notifica automatica in aggiunta alla nostra — un
+// comportamento "a scatola nera" che i nostri log non potrebbero vedere,
+// dato che avverrebbe dentro l'SDK, prima ancora di raggiungere il nostro
+// codice. Con l'API nativa, l'unica chiamata a showNotification() possibile
+// è quella scritta qui sotto, punto.
+self.addEventListener('push', (event) => {
+    event.waitUntil(handlePush(event));
+});
 
-    // Il payload ora è SOLO "data" (niente più campo "notification" di
-    // primo livello): evita che il browser/SDK mostri automaticamente una
-    // sua notifica interna in aggiunta a quella che mostriamo noi qui.
-    const data = payload.data || {};
+async function handlePush(event) {
+
+    let raw = {};
+    try {
+        raw = event.data ? event.data.json() : {};
+    } catch (e) {
+        console.warn('Payload push non in formato JSON atteso:', e);
+        return;
+    }
+
+    // A seconda di come FCM serializza il messaggio "solo data" sul canale
+    // push nativo, i nostri campi possono comparire come oggetto piatto o
+    // annidati sotto "data": gestiamo entrambi i casi.
+    const data = raw.data || raw;
 
     const title = data.title || "Locanda del Convento";
 
@@ -124,9 +137,9 @@ messaging.onBackgroundMessage(async (payload) => {
 
     debugLog('notifica_mostrata', data.tag);
 
-    self.registration.showNotification(title, options);
+    await self.registration.showNotification(title, options);
 
-});
+}
 
 // Al tocco della notifica: porta in primo piano una scheda già aperta,
 // altrimenti ne apre una nuova.
