@@ -31,6 +31,29 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Log diagnostico scritto direttamente su Firestore via REST (niente SDK
+// completo necessario in questo file), per verificare con certezza quante
+// volte il gestore del push scatta davvero — la Console remota via cavo si
+// è dimostrata inaffidabile nel catturare eventi quando l'app iOS è sospesa
+// in background.
+function debugLog(event, tag) {
+    const url = 'https://firestore.googleapis.com/v1/projects/prenotazionilocanda-7808c/databases/(default)/documents/debug_logs';
+    const body = {
+        fields: {
+            event: { stringValue: String(event) },
+            tag: { stringValue: String(tag || '') },
+            ts: { stringValue: new Date().toISOString() }
+        }
+    };
+    // "fire and forget": non blocchiamo mai la normale gestione del push
+    // per un log diagnostico, e ignoriamo silenziosamente eventuali errori.
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    }).catch(() => {});
+}
+
 const DEDUP_CACHE_NAME = 'notif-dedup-v1';
 const DEDUP_WINDOW_MS = 30000; // 30 secondi: FCM/APNs possono ri-consegnare
                                  // lo stesso messaggio più di una volta (è un
@@ -75,11 +98,14 @@ messaging.onBackgroundMessage(async (payload) => {
 
     const title = notif.title || "Locanda del Convento";
 
+    debugLog('push_ricevuto', data.tag);
+
     // Se lo stesso identico evento (stesso tag) è già stato mostrato pochi
     // secondi fa, ignora: è una ri-consegna duplicata dello stesso push,
     // non un evento nuovo.
     if (await wasRecentlyShown(data.tag)) {
         console.log('Notifica duplicata ignorata (stesso tag entro la finestra anti-doppione):', data.tag);
+        debugLog('duplicato_ignorato', data.tag);
         return;
     }
 
@@ -94,6 +120,8 @@ messaging.onBackgroundMessage(async (payload) => {
         vibrate: [120, 60, 120],
         data
     };
+
+    debugLog('notifica_mostrata', data.tag);
 
     self.registration.showNotification(title, options);
 
