@@ -1706,7 +1706,19 @@
         // 3. STATO APPLICAZIONE
         // ---------------------------------------------------------
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Data di "oggi" calcolata in ora LOCALE (non UTC): toISOString()
+        // usa sempre il fuso UTC, che in Italia può far sbagliare il giorno
+        // di una unità nelle ore vicine alla mezzanotte. Usiamo invece i
+        // componenti data locali del dispositivo.
+        function getLocalTodayStr() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        let todayStr = getLocalTodayStr();
 
         document.getElementById('current-date').value = todayStr;
 
@@ -1759,6 +1771,37 @@
             updateNotifButtonIcon();
             loadDateData();
             initLogoListener();
+            startAutoDayAdvance();
+        }
+
+        // Se il "giorno attivo" è ancora quello impostato automaticamente
+        // all'apertura (cioè l'utente non ha scelto manualmente un altro
+        // giorno per consultare lo storico), e nel frattempo è scattata la
+        // mezzanotte, avanza da solo al nuovo giorno — senza bisogno di
+        // ricaricare la pagina. Controlla ogni minuto e ogni volta che
+        // l'app torna in primo piano.
+        function startAutoDayAdvance() {
+
+            function checkForDayChange() {
+                const realToday = getLocalTodayStr();
+                const dateInput = document.getElementById('current-date');
+
+                if (realToday !== todayStr && dateInput.value === todayStr) {
+                    todayStr = realToday;
+                    dateInput.value = todayStr;
+                    loadDateData();
+                    showToast(`📅 È iniziato un nuovo giorno: ${realToday.split('-').reverse().join('/')}`);
+                }
+            }
+
+            setInterval(checkForDayChange, 60000);
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    checkForDayChange();
+                }
+            });
+
         }
 
         async function handleLogin(event) {
@@ -3744,7 +3787,11 @@
                 const card = document.createElement('div');
 
                 card.className =
-                    'glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md space-y-3 card-interactive animate-fade-in transition-all';
+                    `glass-panel border p-4 rounded-2xl shadow-sm hover:shadow-md space-y-3 card-interactive animate-fade-in transition-all ${
+                        b.noShow
+                            ? 'bg-stone-100/70 dark:bg-stone-900/40 border-stone-300 dark:border-stone-700 opacity-60'
+                            : 'border-stone-200 dark:border-stone-700'
+                    }`;
 
 
                 card.innerHTML = `
@@ -3799,15 +3846,33 @@
                         </div>
                     ` : ''}
 
-                    ${hasTable ? `
-                        <button onclick="toggleArrived('${b.id}')"
-                            class="btn-tap w-full py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-sm transition-all ${
-                                isArrived
-                                    ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                                    : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
-                            }">
-                            ${isArrived ? '✓ CLIENTE ARRIVATO' : '👉 SEGNALA COME ARRIVATO'}
-                        </button>
+                    ${b.noShow ? `
+                        <div class="bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-600 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold text-stone-500 dark:text-stone-400">
+                                🚫 NON PRESENTATO
+                            </span>
+                            <button onclick="toggleNoShow('${b.id}')"
+                                class="btn-tap text-[10px] font-bold uppercase text-stone-600 dark:text-stone-300 underline">
+                                Annulla
+                            </button>
+                        </div>
+                    ` : hasTable ? `
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="toggleArrived('${b.id}')"
+                                class="btn-tap col-span-2 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-sm transition-all ${
+                                    isArrived
+                                        ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
+                                }">
+                                ${isArrived ? '✓ ARRIVATO' : '👉 SEGNALA ARRIVATO'}
+                            </button>
+                            ${!isArrived ? `
+                                <button onclick="toggleNoShow('${b.id}')"
+                                    class="btn-tap py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-wider bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400">
+                                    🚫 No-show
+                                </button>
+                            ` : '<div></div>'}
+                        </div>
                     ` : `
                         <button onclick="openEditModal('${b.id}')"
                             class="btn-tap w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
@@ -3841,7 +3906,9 @@
 
             bookings.forEach(b => {
 
-                totalPeople += (b.people || 0);
+                if (!b.noShow) {
+                    totalPeople += (b.people || 0);
+                }
 
                 if (b.arrived) {
 
@@ -4538,7 +4605,9 @@
                     }
 
 
-                    daysMap[dateStr].totalPeople += (data.people || 0);
+                    if (!data.noShow) {
+                        daysMap[dateStr].totalPeople += (data.people || 0);
+                    }
 
                     daysMap[dateStr].tablesCount += 1;
 
@@ -4666,7 +4735,7 @@
 
                 bookings.forEach(b => {
 
-                    if (timeSlots[b.time] !== undefined) {
+                    if (timeSlots[b.time] !== undefined && !b.noShow) {
 
                         timeSlots[b.time] += (b.people || 0);
 
@@ -4779,7 +4848,9 @@
                         }
 
 
-                        daysMap[dateStr] += (data.people || 0);
+                        if (!data.noShow) {
+                            daysMap[dateStr] += (data.people || 0);
+                        }
 
                     });
 
