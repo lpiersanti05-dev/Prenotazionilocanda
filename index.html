@@ -3367,16 +3367,26 @@
             }
 
 
-            // Ordina per priorità (prioritari in cima, nuovissimi prioritari sopra) poi per orario
+            // Ordina per numero di tavolo: le prenotazioni senza tavolo
+            // assegnato vengono prima di tutte, poi in ordine numerico
+            // crescente di tavolo (i tavoli con lettere/numeri misti restano
+            // in fondo, ordinati come testo).
             const sorted = [...bookings].sort((a, b) => {
-                if (a.priority && !b.priority) return -1;
-                if (!a.priority && b.priority) return 1;
-                if (a.priority && b.priority) {
-                    const timeA = a.priorityAt && a.priorityAt.seconds ? a.priorityAt.seconds : 0;
-                    const timeB = b.priorityAt && b.priorityAt.seconds ? b.priorityAt.seconds : 0;
-                    if (timeA !== timeB) return timeB - timeA;
+                const aHasTable = !!a.table;
+                const bHasTable = !!b.table;
+
+                if (!aHasTable && bHasTable) return -1;
+                if (aHasTable && !bHasTable) return 1;
+                if (!aHasTable && !bHasTable) return a.time.localeCompare(b.time);
+
+                const numA = parseInt(a.table);
+                const numB = parseInt(b.table);
+
+                if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+                    return numA - numB;
                 }
-                return a.time.localeCompare(b.time);
+
+                return String(a.table).localeCompare(String(b.table));
             });
 
 
@@ -3976,7 +3986,7 @@
 
                 title.innerText = "⏳ Tavoli In Arrivo";
 
-                filtered = bookings.filter(b => !b.arrived && !b.noShow);
+                filtered = bookings.filter(b => !b.arrived);
 
             }
 
@@ -4027,11 +4037,13 @@
 
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                                b.arrived
+                                b.noShow
+                                    ? 'bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300 border border-stone-300 dark:border-stone-600'
+                                    : b.arrived
                                     ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-700'
                                     : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-700'
                             }">
-                                ${b.arrived ? 'Arrivato' : 'In Arrivo'}
+                                ${b.noShow ? '🚫 No-show' : b.arrived ? 'Arrivato' : 'In Arrivo'}
                             </span>
                             
                             ${!b.arrived ? `
@@ -4821,9 +4833,14 @@
                 // Andamento storico coperti
                 try {
 
+                    // ordine "desc" così il limite prende le 300 prenotazioni
+                    // PIÙ RECENTI (non le 300 più vecchie, che escludevano
+                    // i giorni recenti una volta superate 300 prenotazioni
+                    // totali nel database) — poi le rimettiamo in ordine
+                    // cronologico per il grafico.
                     const snapshot =
                         await db.collection("bookings")
-                            .orderBy("date", "asc")
+                            .orderBy("date", "desc")
                             .limit(300)
                             .get();
 
@@ -4855,7 +4872,9 @@
                     });
 
 
-                    const labels = Object.keys(daysMap).map(d => {
+                    const sortedDateKeys = Object.keys(daysMap).sort((a, b) => a.localeCompare(b));
+
+                    const labels = sortedDateKeys.map(d => {
 
                         const parts = d.split('-');
 
@@ -4864,7 +4883,7 @@
                     });
 
 
-                    const data = Object.values(daysMap);
+                    const data = sortedDateKeys.map(d => daysMap[d]);
 
                     const gridColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
                     const tickColor = isDarkMode ? '#a8a29e' : '#57534e';
