@@ -1782,6 +1782,17 @@
         // l'app torna in primo piano.
         function startAutoDayAdvance() {
 
+            let lastForegroundTime = Date.now();
+            // Sotto questa soglia di tempo in background non ricarichiamo:
+            // un breve cambio di app o uno sblocco veloce dello schermo non
+            // giustifica un refresh, evitiamo di farlo per ogni minima
+            // interruzione. Oltre questa soglia (es. schermo spento per un
+            // paio di minuti), invece, ricarichiamo i dati da soli appena
+            // l'app torna visibile — perché il collegamento in tempo reale
+            // con Firestore può "addormentarsi" in background su iOS e non
+            // risvegliarsi da solo in modo affidabile.
+            const STALE_THRESHOLD_MS = 20000;
+
             function checkForDayChange() {
                 const realToday = getLocalTodayStr();
                 const dateInput = document.getElementById('current-date');
@@ -1791,14 +1802,39 @@
                     dateInput.value = todayStr;
                     loadDateData();
                     showToast(`📅 È iniziato un nuovo giorno: ${realToday.split('-').reverse().join('/')}`);
+                    return true; // già ricaricato, non serve rifarlo sotto
                 }
+                return false;
+            }
+
+            function handleReturnToForeground() {
+                const awayMs = Date.now() - lastForegroundTime;
+
+                const alreadyReloaded = checkForDayChange();
+
+                if (!alreadyReloaded && awayMs > STALE_THRESHOLD_MS) {
+                    loadDateData();
+                }
+
+                lastForegroundTime = Date.now();
             }
 
             setInterval(checkForDayChange, 60000);
 
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
-                    checkForDayChange();
+                    handleReturnToForeground();
+                } else {
+                    lastForegroundTime = Date.now();
+                }
+            });
+
+            // "pageshow" copre anche il caso in cui Safari ripristina la
+            // pagina dalla sua cache di navigazione (bfcache), che a volte
+            // "visibilitychange" da solo non intercetta.
+            window.addEventListener('pageshow', (event) => {
+                if (event.persisted) {
+                    handleReturnToForeground();
                 }
             });
 
