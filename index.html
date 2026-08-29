@@ -586,6 +586,24 @@
         </div>
     </div>
 
+    <!-- Modal Riepilogo Serata -->
+    <div id="report-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="glass-panel border border-stone-200 dark:border-stone-700 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-pop max-h-[85vh] overflow-y-auto">
+
+            <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-2 sticky top-0 bg-white/90 dark:bg-stone-800/90 backdrop-blur-md">
+                <h3 class="font-extrabold text-sm text-stone-800 dark:text-stone-100 uppercase tracking-wider">
+                    📋 Riepilogo Serata
+                </h3>
+                <button onclick="closeReportModal()" class="text-stone-400 dark:text-stone-500 font-bold text-xs hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
+                    ✕ Chiudi
+                </button>
+            </div>
+
+            <div id="report-modal-content" class="space-y-3"></div>
+
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header class="glass-panel border-b border-stone-200/50 dark:border-stone-700/50 p-4 sticky top-0 z-20 shadow-sm transition-colors duration-300">
 
@@ -1376,6 +1394,19 @@
 
         <section id="tab-grafici" class="hidden space-y-4 animate-fade-in">
 
+            <!-- RIEPILOGO SERATA -->
+            <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-between">
+                <div>
+                    <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">
+                        📋 Riepilogo Serata
+                    </h2>
+                    <p class="text-[11px] text-stone-500 dark:text-stone-400">Statistiche pronte da leggere a fine servizio</p>
+                </div>
+                <button onclick="showEndOfNightReport()" class="btn-tap bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase shadow-md flex items-center gap-2">
+                    <span>📋</span> Vedi Riepilogo
+                </button>
+            </div>
+
             <!-- 5. PULSANTE ESPORTAZIONE EXCEL / CSV -->
             <div class="glass-panel border border-stone-200 dark:border-stone-700 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-between">
                 <div>
@@ -1500,6 +1531,46 @@
             }, 3500);
         }
 
+        // Toast con pulsante "Annulla": usato per azioni distruttive (es.
+        // eliminazione) così l'utente ha qualche secondo per ripensarci
+        // senza dover confermare ogni volta con un popup bloccante.
+        function showUndoToast(message, onUndo) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = 'pointer-events-auto px-4 py-3 rounded-2xl text-xs font-bold shadow-xl animate-toast flex items-center gap-3 max-w-sm text-center border backdrop-blur-xl bg-stone-900/90 dark:bg-stone-100/90 text-white dark:text-stone-900 border-stone-700';
+
+            let undone = false;
+
+            toast.innerHTML = `
+                <span>🗑️</span>
+                <span class="flex-1 text-left">${message}</span>
+                <button class="btn-tap shrink-0 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[11px] uppercase font-extrabold">
+                    Annulla
+                </button>
+            `;
+
+            const undoBtn = toast.querySelector('button');
+            undoBtn.onclick = () => {
+                if (undone) return;
+                undone = true;
+                dismiss();
+                onUndo();
+            };
+
+            container.appendChild(toast);
+
+            function dismiss() {
+                toast.style.transition = 'all 0.3s ease-out';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px) scale(0.9)';
+                setTimeout(() => toast.remove(), 300);
+            }
+
+            setTimeout(dismiss, 6000);
+        }
+
         // ---------------------------------------------------------
         // 4. FUNZIONE NOTE RAPIDE
         // ---------------------------------------------------------
@@ -1527,7 +1598,10 @@
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,ID;Data;Nome;Tavolo;Tavoli Uniti;Persone;Seggioloni;Orario;Note;Arrivato;Walk-in;Priorita\n";
+            // Il BOM (\ufeff) fa sì che Excel riconosca il file come UTF-8 e mostri
+            // correttamente lettere accentate come à, è, ò — senza, Excel spesso
+            // le mostra come simboli strani.
+            let csvContent = "data:text/csv;charset=utf-8,\ufeffID;Data;Nome;Tavolo;Tavoli Uniti;Persone;Seggioloni;Orario;Note;Arrivato;Non Presentato;Walk-in;Priorita\n";
 
             bookings.forEach(b => {
                 const row = [
@@ -1541,6 +1615,7 @@
                     b.time || "",
                     `"${(b.notes || "").replace(/"/g, '""')}"`,
                     b.arrived ? "Sì" : "No",
+                    b.noShow ? "Sì" : "No",
                     b.isWalkin ? "Sì" : "No",
                     b.priority ? "Sì" : "No"
                 ];
@@ -1728,7 +1803,7 @@
         // ⚠️ Incolla qui la tua VAPID Key:
         // Firebase Console > Impostazioni progetto > Cloud Messaging >
         // "Configurazione web" > Genera coppia di chiavi
-        const FCM_VAPID_KEY = "BASAAb497jFg1rRJLF4SNRgqkaq0V7xg-3myz5mKTzIYTOuIiaaoGmZO4yyZBxeTtlyDd4FGCYM6Bezu6aQehjg";
+        const FCM_VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
 
         function isIOSDevice() {
             return /iP(hone|ad|od)/.test(navigator.userAgent) ||
@@ -2750,7 +2825,11 @@
 
                             welcome: false,
 
-                            ordered: false
+                            ordered: false,
+
+                            // Segnare come arrivato annulla automaticamente
+                            // un eventuale "non presentato" precedente.
+                            noShow: nextArrivedState ? false : booking.noShow || false
 
                         });
 
@@ -2764,6 +2843,37 @@
                     );
 
                 }
+
+            }
+
+        }
+
+
+        // ---------------------------------------------------------
+        // NON PRESENTATO (NO-SHOW)
+        // ---------------------------------------------------------
+
+        async function toggleNoShow(id) {
+
+            const booking = bookings.find(b => b.id === id);
+            if (!booking) return;
+
+            const nextNoShow = !booking.noShow;
+
+            try {
+
+                await db.collection("bookings").doc(id).update({
+                    noShow: nextNoShow,
+                    // Segnare "non presentato" ha senso solo se il tavolo
+                    // non è mai arrivato.
+                    arrived: nextNoShow ? false : booking.arrived
+                });
+
+                showToast(nextNoShow ? `🚫 Tavolo ${booking.table || ''} segnato come non presentato.` : "Segnalazione di non presentato rimossa.");
+
+            } catch (err) {
+
+                showError("Errore nell'aggiornamento dello stato: " + err.message);
 
             }
 
@@ -3155,25 +3265,34 @@
 
             if (!b) return;
 
+            // Salviamo una copia dei dati (senza l'id, che cambierà se
+            // ripristiniamo) per poterla ricreare in caso di "Annulla".
+            const { id: _oldId, ...bookingDataCopy } = b;
 
-            if (confirm(`Sei sicuro di voler eliminare la prenotazione del Tavolo ${b.table} (${b.name})?`)) {
+            try {
 
-                try {
+                await db.collection("bookings")
+                    .doc(id)
+                    .delete();
 
-                    await db.collection("bookings")
-                        .doc(id)
-                        .delete();
+                showUndoToast(
+                    `Prenotazione Tavolo ${b.table || '(da assegnare)'} (${b.name}) eliminata.`,
+                    async () => {
+                        try {
+                            await db.collection("bookings").add(bookingDataCopy);
+                            showToast("Prenotazione ripristinata!");
+                        } catch (err) {
+                            showError("Impossibile ripristinare: " + err.message);
+                        }
+                    }
+                );
 
-                    showToast("Prenotazione eliminata.");
+            } catch (err) {
 
-                } catch (err) {
-
-                    showError(
-                        "Impossibile eliminare: " +
-                        err.message
-                    );
-
-                }
+                showError(
+                    "Impossibile eliminare: " +
+                    err.message
+                );
 
             }
 
@@ -3226,7 +3345,9 @@
 
                 const zoneStr = hasTable ? getTableZone(b.table) : 'Zona da definire';
 
-                const cardBg = isPriority 
+                const cardBg = b.noShow
+                    ? 'bg-stone-100/70 dark:bg-stone-900/40 border-stone-300 dark:border-stone-700 opacity-60'
+                    : isPriority 
                     ? 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700 shadow-amber-500/10' 
                     : isArrived 
                     ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' 
@@ -3356,15 +3477,33 @@
                         </div>
                     ` : ''}
 
-                    ${hasTable ? `
-                        <button onclick="toggleArrived('${b.id}')"
-                            class="btn-tap w-full py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-sm transition-all ${
-                                isArrived
-                                    ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                                    : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
-                            }">
-                            ${isArrived ? '✓ CLIENTE ARRIVATO AL TAVOLO' : '👉 SEGNALA COME ARRIVATO'}
-                        </button>
+                    ${b.noShow ? `
+                        <div class="bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-600 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold text-stone-500 dark:text-stone-400">
+                                🚫 Segnato come NON PRESENTATO
+                            </span>
+                            <button onclick="toggleNoShow('${b.id}')"
+                                class="btn-tap text-[10px] font-bold uppercase text-stone-600 dark:text-stone-300 underline">
+                                Annulla
+                            </button>
+                        </div>
+                    ` : hasTable ? `
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="toggleArrived('${b.id}')"
+                                class="btn-tap col-span-2 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-sm transition-all ${
+                                    isArrived
+                                        ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
+                                }">
+                                ${isArrived ? '✓ ARRIVATO' : '👉 SEGNALA ARRIVATO'}
+                            </button>
+                            ${!isArrived ? `
+                                <button onclick="toggleNoShow('${b.id}')"
+                                    class="btn-tap py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-wider bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400">
+                                    🚫 No-show
+                                </button>
+                            ` : '<div></div>'}
+                        </div>
                     ` : `
                         <button onclick="openEditModal('${b.id}')"
                             class="btn-tap w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
@@ -3708,7 +3847,7 @@
 
                     arrivedTables++;
 
-                } else {
+                } else if (!b.noShow) {
 
                     pendingTables++;
 
@@ -3770,7 +3909,7 @@
 
                 title.innerText = "⏳ Tavoli In Arrivo";
 
-                filtered = bookings.filter(b => !b.arrived);
+                filtered = bookings.filter(b => !b.arrived && !b.noShow);
 
             }
 
@@ -3854,6 +3993,136 @@
             document.getElementById('stat-list-modal')
                 .classList.add('hidden');
 
+        }
+
+
+        // ---------------------------------------------------------
+        // RIEPILOGO DI FINE SERATA
+        // ---------------------------------------------------------
+
+        function showEndOfNightReport() {
+
+            const content = document.getElementById('report-modal-content');
+
+            if (bookings.length === 0) {
+                content.innerHTML = `
+                    <div class="text-center py-8 text-stone-400 dark:text-stone-500 text-xs">
+                        Nessuna prenotazione per questo giorno, niente da riepilogare.
+                    </div>
+                `;
+                document.getElementById('report-modal').classList.remove('hidden');
+                return;
+            }
+
+            const totalReservations = bookings.length;
+            const arrivedList = bookings.filter(b => b.arrived);
+            const noShowList = bookings.filter(b => b.noShow);
+            const walkinList = bookings.filter(b => b.isWalkin);
+            const priorityList = bookings.filter(b => b.priority);
+
+            const totalCoperti = bookings.reduce((sum, b) => sum + (b.people || 0), 0);
+            const arrivedCoperti = arrivedList.reduce((sum, b) => sum + (b.people || 0), 0);
+
+            const avgPeople = totalReservations > 0
+                ? (totalCoperti / totalReservations).toFixed(1)
+                : '0';
+
+            const noShowRate = totalReservations > 0
+                ? Math.round((noShowList.length / totalReservations) * 100)
+                : 0;
+
+            // Fascia oraria con più coperti prenotati
+            const timeSlots = {};
+            bookings.forEach(b => {
+                if (!b.time) return;
+                timeSlots[b.time] = (timeSlots[b.time] || 0) + (b.people || 0);
+            });
+            let busiestSlot = '-';
+            let busiestSlotPeople = 0;
+            Object.entries(timeSlots).forEach(([time, people]) => {
+                if (people > busiestSlotPeople) {
+                    busiestSlot = time;
+                    busiestSlotPeople = people;
+                }
+            });
+
+            const dateVal = document.getElementById('current-date').value;
+            const parts = dateVal ? dateVal.split('-') : null;
+            const formattedDate = parts ? `${parts[2]}/${parts[1]}/${parts[0]}` : '--/--/----';
+
+            content.innerHTML = `
+
+                <p class="text-xs text-stone-500 dark:text-stone-400 font-semibold">
+                    📅 ${formattedDate}
+                </p>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-center">
+                        <span class="text-2xl font-black text-emerald-700 dark:text-emerald-400">${totalCoperti}</span>
+                        <span class="text-[10px] text-emerald-800 dark:text-emerald-400 block font-bold uppercase mt-1">Coperti Totali</span>
+                    </div>
+                    <div class="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3 rounded-xl text-center">
+                        <span class="text-2xl font-black text-blue-700 dark:text-blue-400">${arrivedCoperti}</span>
+                        <span class="text-[10px] text-blue-800 dark:text-blue-400 block font-bold uppercase mt-1">Coperti Arrivati</span>
+                    </div>
+                    <div class="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 p-3 rounded-xl text-center">
+                        <span class="text-2xl font-black text-purple-700 dark:text-purple-400">${totalReservations}</span>
+                        <span class="text-[10px] text-purple-800 dark:text-purple-400 block font-bold uppercase mt-1">Prenotazioni</span>
+                    </div>
+                    <div class="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 rounded-xl text-center">
+                        <span class="text-2xl font-black text-amber-700 dark:text-amber-400">${walkinList.length}</span>
+                        <span class="text-[10px] text-amber-800 dark:text-amber-400 block font-bold uppercase mt-1">Walk-in</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-1">
+
+                    <div class="flex justify-between items-center bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-3 rounded-xl text-xs">
+                        <span class="text-stone-600 dark:text-stone-400 font-semibold">🚫 Non presentati (no-show)</span>
+                        <span class="font-extrabold ${noShowList.length > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-stone-500 dark:text-stone-500'}">
+                            ${noShowList.length} ${totalReservations > 0 ? `(${noShowRate}%)` : ''}
+                        </span>
+                    </div>
+
+                    <div class="flex justify-between items-center bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-3 rounded-xl text-xs">
+                        <span class="text-stone-600 dark:text-stone-400 font-semibold">⭐ Tavoli con priorità</span>
+                        <span class="font-extrabold text-stone-700 dark:text-stone-300">${priorityList.length}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-3 rounded-xl text-xs">
+                        <span class="text-stone-600 dark:text-stone-400 font-semibold">👥 Media persone/prenotazione</span>
+                        <span class="font-extrabold text-stone-700 dark:text-stone-300">${avgPeople}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 p-3 rounded-xl text-xs">
+                        <span class="text-stone-600 dark:text-stone-400 font-semibold">🔥 Fascia oraria di punta</span>
+                        <span class="font-extrabold text-stone-700 dark:text-stone-300">${busiestSlot !== '-' ? `${busiestSlot} (${busiestSlotPeople} coperti)` : '-'}</span>
+                    </div>
+
+                </div>
+
+                ${noShowList.length > 0 ? `
+                    <div class="pt-2">
+                        <p class="text-[11px] font-bold text-stone-500 dark:text-stone-400 uppercase mb-2">Elenco no-show</p>
+                        <div class="space-y-1.5">
+                            ${noShowList.map(b => `
+                                <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-3 py-2 rounded-lg text-[11px] flex justify-between">
+                                    <span class="font-semibold text-stone-700 dark:text-stone-300">${b.name} ${b.table ? `(T${b.table})` : ''}</span>
+                                    <span class="text-stone-500 dark:text-stone-400">🕒 ${b.time} • 👥 ${b.people}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+            `;
+
+            document.getElementById('report-modal').classList.remove('hidden');
+
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.add('hidden');
         }
 
 
