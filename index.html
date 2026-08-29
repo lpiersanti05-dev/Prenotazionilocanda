@@ -23,6 +23,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -208,6 +209,53 @@
 
 <body class="bg-gradient-to-br from-stone-100 via-emerald-50/30 to-stone-200 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950 text-stone-800 dark:text-stone-100 min-h-screen pb-12 select-none transition-colors duration-300">
 
+    <!-- Schermata di accesso: copre tutto finché non si effettua il login.
+         Senza autenticazione, chiunque avesse il link del sito poteva
+         leggere e modificare tutte le prenotazioni — questo è il primo,
+         indispensabile passo di sicurezza. -->
+    <div id="login-screen" class="fixed inset-0 z-[300] bg-gradient-to-br from-stone-100 via-emerald-50/30 to-stone-200 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950 flex items-center justify-center p-4">
+        <div class="glass-panel border border-stone-200 dark:border-stone-700 rounded-3xl max-w-xs w-full p-6 space-y-5 shadow-2xl">
+
+            <div class="text-center space-y-1">
+                <div class="text-4xl">🔒</div>
+                <h1 class="font-extrabold text-base text-stone-900 dark:text-stone-100">
+                    Locanda Del Convento
+                </h1>
+                <p class="text-[11px] text-stone-500 dark:text-stone-400">
+                    Accesso riservato al personale
+                </p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-3">
+
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5">
+                        Email
+                    </label>
+                    <input type="email" id="login-email" required autocomplete="username"
+                        class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5">
+                        Password
+                    </label>
+                    <input type="password" id="login-password" required autocomplete="current-password"
+                        class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
+                </div>
+
+                <p id="login-error" class="hidden text-[11px] text-rose-600 dark:text-rose-400 font-semibold text-center"></p>
+
+                <button type="submit" id="login-submit-btn"
+                    class="btn-tap w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs uppercase shadow-md transition-colors">
+                    Accedi
+                </button>
+
+            </form>
+
+        </div>
+    </div>
+
     <!-- 3. NOTIFICHE A SCOMPARSA (TOAST iOS) -->
     <div id="toast-container" class="fixed bottom-6 left-0 right-0 z-50 flex flex-col items-center pointer-events-none px-4 space-y-2"></div>
 
@@ -337,6 +385,7 @@
                             N° Tavolo
                         </label>
                         <input type="text" id="edit-table" placeholder="es. 15 (opzionale)"
+                            inputmode="numeric" pattern="[0-9]*"
                             class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
                     </div>
 
@@ -358,6 +407,7 @@
                         </label>
 
                         <select id="edit-people" required
+                            onchange="toggleCustomPeopleInput('edit-people', 'edit-people-custom')"
                             class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all cursor-pointer">
 
                             <option value="1">1 Persona</option>
@@ -383,6 +433,10 @@
                             <option value="21">20+ Tavolata</option>
 
                         </select>
+
+                        <input type="text" id="edit-people-custom" placeholder="Quante persone? es. 25"
+                            inputmode="numeric" pattern="[0-9]*"
+                            class="hidden mt-2 w-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all">
                     </div>
 
                     <div>
@@ -582,6 +636,11 @@
                         <span id="theme-toggle-icon">🌙</span>
                     </button>
 
+                    <button onclick="handleLogout()"
+                        class="btn-tap w-10 h-10 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg shadow-sm hover:shadow-md hover:bg-stone-200 dark:hover:bg-stone-700 transition-all">
+                        🚪
+                    </button>
+
                 </div>
 
             </div>
@@ -741,6 +800,7 @@
                         <input type="text"
                             id="walkin-table"
                             placeholder="es. 5"
+                            inputmode="numeric" pattern="[0-9]*"
                             required
                             class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all">
                     </div>
@@ -753,6 +813,7 @@
                             </label>
 
                             <select id="walkin-people" required
+                                onchange="toggleCustomPeopleInput('walkin-people', 'walkin-people-custom')"
                                 class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all cursor-pointer">
                                 <option value="1">1 Persona</option>
                                 <option value="2" selected>2 Persone</option>
@@ -776,6 +837,10 @@
                                 <option value="20">20 Persone</option>
                                 <option value="21">20+ Tavolata</option>
                             </select>
+
+                            <input type="text" id="walkin-people-custom" placeholder="Quante persone? es. 25"
+                                inputmode="numeric" pattern="[0-9]*"
+                                class="hidden mt-2 w-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all">
                         </div>
 
                         <div>
@@ -871,6 +936,7 @@
                             <input type="text"
                                 id="input-table"
                                 placeholder="es. 15 (opzionale)"
+                                inputmode="numeric" pattern="[0-9]*"
                                 class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all">
                         </div>
 
@@ -895,6 +961,7 @@
                             </label>
 
                             <select id="input-people" required
+                                onchange="toggleCustomPeopleInput('input-people', 'input-people-custom')"
                                 class="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900 outline-none transition-all cursor-pointer">
 
                                 <option value="1">1 Persona</option>
@@ -920,6 +987,10 @@
                                 <option value="21">20+ Tavolata</option>
 
                             </select>
+
+                            <input type="text" id="input-people-custom" placeholder="Quante persone? es. 25"
+                                inputmode="numeric" pattern="[0-9]*"
+                                class="hidden mt-2 w-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-xl p-3 text-xs text-stone-800 dark:text-stone-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-900 outline-none transition-all">
                         </div>
 
                         <div>
@@ -1571,13 +1642,19 @@
         let previousBookingsMap = new Map(); // Per tracciare variazioni e notifiche cross-device
 
 
+        async function handleLogout() {
+            if (!confirm("Vuoi davvero uscire? Dovrai rifare il login per accedere di nuovo.")) return;
+            try {
+                await firebase.auth().signOut();
+                window.__appAlreadyInitialized = false;
+            } catch (err) {
+                showError("Errore durante il logout: " + err.message);
+            }
+        }
+
         window.onload = function() {
             initTheme();
-            initNotifications(true);
-            updateNotifButtonIcon();
-            loadDateData();
-            initLogoListener();
-            
+
             // Ascolta i cambiamenti di tema del dispositivo
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
                 if (!localStorage.getItem('theme')) {
@@ -1586,7 +1663,58 @@
                     if (myChart) renderCharts();
                 }
             });
+
+            // L'app vera e propria (dati, notifiche) parte SOLO dopo il login:
+            // vedi initAppAfterLogin(), chiamata da onAuthStateChanged qui sotto.
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    document.getElementById('login-screen').classList.add('hidden');
+                    initAppAfterLogin();
+                } else {
+                    document.getElementById('login-screen').classList.remove('hidden');
+                }
+            });
         };
+
+        function initAppAfterLogin() {
+            if (window.__appAlreadyInitialized) return; // evita doppia inizializzazione
+            window.__appAlreadyInitialized = true;
+
+            initNotifications(true);
+            updateNotifButtonIcon();
+            loadDateData();
+            initLogoListener();
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            const submitBtn = document.getElementById('login-submit-btn');
+
+            errorEl.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Accesso in corso...';
+
+            try {
+                await firebase.auth().signInWithEmailAndPassword(email, password);
+                // onAuthStateChanged si occupa del resto (nasconde il login, avvia l'app)
+            } catch (err) {
+                let msg = "Email o password non corretti.";
+                if (err.code === 'auth/too-many-requests') {
+                    msg = "Troppi tentativi falliti. Riprova tra qualche minuto.";
+                } else if (err.code === 'auth/user-disabled') {
+                    msg = "Questo account è stato disabilitato.";
+                }
+                errorEl.innerText = msg;
+                errorEl.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Accedi';
+            }
+        }
 
 
         // ---------------------------------------------------------
@@ -1610,6 +1738,45 @@
         function isRunningAsInstalledApp() {
             return window.navigator.standalone === true ||
                 window.matchMedia('(display-mode: standalone)').matches;
+        }
+
+        // ID univoco e stabile per questo browser/dispositivo, generato una sola
+        // volta e riusato per sempre. Usato come chiave del documento in
+        // fcm_tokens, cosicché ogni dispositivo abbia sempre un solo documento
+        // Mostra/nasconde il campo per il numero esatto quando si sceglie
+        // "20+ Tavolata" in uno dei select Persone.
+        function toggleCustomPeopleInput(selectId, customInputId) {
+            const select = document.getElementById(selectId);
+            const custom = document.getElementById(customInputId);
+            if (!select || !custom) return;
+
+            if (select.value === '21') {
+                custom.classList.remove('hidden');
+                custom.focus();
+            } else {
+                custom.classList.add('hidden');
+                custom.value = '';
+            }
+        }
+
+        // Legge il numero di persone "vero" da usare come coperti: se è
+        // selezionato "20+ Tavolata" usa il valore digitato a mano nel
+        // campo personalizzato (con un minimo ragionevole di 21), altrimenti
+        // il valore del select stesso.
+        function getEffectivePeopleCount(selectId, customInputId) {
+            const select = document.getElementById(selectId);
+            const rawSelect = parseInt(select.value);
+
+            if (rawSelect === 21) {
+                const custom = document.getElementById(customInputId);
+                const customVal = parseInt((custom && custom.value || '').trim());
+                if (!isNaN(customVal) && customVal > 0) {
+                    return customVal;
+                }
+                return 21; // fallback se il campo personalizzato è vuoto
+            }
+
+            return rawSelect;
         }
 
         // ID univoco e stabile per questo browser/dispositivo, generato una sola
@@ -2301,7 +2468,7 @@
                 document.getElementById('input-joined').value.trim();
 
             const rawPeople =
-                parseInt(document.getElementById('input-people').value);
+                getEffectivePeopleCount('input-people', 'input-people-custom');
 
             const chairs =
                 parseInt(document.getElementById('input-chairs').value) || 0;
@@ -2416,6 +2583,9 @@
 
                 document.getElementById('input-priority').checked = false;
 
+                document.getElementById('input-people-custom').classList.add('hidden');
+                document.getElementById('input-people-custom').value = '';
+
                 showToast(priority ? "⭐ Prenotazione con PRIORITÀ salvata!" : "Prenotazione salvata con successo!");
 
             } catch (err) {
@@ -2446,7 +2616,7 @@
                 document.getElementById('walkin-table').value.trim();
 
             const rawPeople =
-                parseInt(document.getElementById('walkin-people').value);
+                getEffectivePeopleCount('walkin-people', 'walkin-people-custom');
 
             const chairs =
                 parseInt(document.getElementById('walkin-chairs').value) || 0;
@@ -2534,6 +2704,9 @@
                 document.getElementById('walkin-chairs').value = '0';
 
                 document.getElementById('walkin-priority').checked = false;
+
+                document.getElementById('walkin-people-custom').classList.add('hidden');
+                document.getElementById('walkin-people-custom').value = '';
 
                 showToast(priority ? "⭐ Walk-in con PRIORITÀ registrato!" : "Walk-in registrato con successo!");
 
@@ -2854,6 +3027,15 @@
             document.getElementById('edit-people').value =
                 netPeople > 20 ? '21' : netPeople.toString();
 
+            const editPeopleCustom = document.getElementById('edit-people-custom');
+            if (netPeople > 20) {
+                editPeopleCustom.value = netPeople.toString();
+                editPeopleCustom.classList.remove('hidden');
+            } else {
+                editPeopleCustom.value = '';
+                editPeopleCustom.classList.add('hidden');
+            }
+
             document.getElementById('edit-chairs').value =
                 (b.chairs || 0).toString();
 
@@ -2899,7 +3081,7 @@
                 document.getElementById('edit-joined').value.trim();
 
             const rawPeople =
-                parseInt(document.getElementById('edit-people').value);
+                getEffectivePeopleCount('edit-people', 'edit-people-custom');
 
             const chairs =
                 parseInt(document.getElementById('edit-chairs').value) || 0;
